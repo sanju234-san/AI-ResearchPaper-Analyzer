@@ -1,0 +1,23 @@
+﻿# Client
+client/node_modules/
+client/dist/
+client/build/
+client/.cache/
+
+# Server
+server/node_modules/
+server/__pycache__/
+server/venv/
+server/.env
+server/*.pyc
+server/*.pyo
+server/*.pyd
+server/.Python
+server/env/
+
+# General
+.DS_Store
+.vscode/
+.idea/
+*.log
+logs/
