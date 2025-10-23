@@ -1,34 +1,7 @@
-﻿# Dependencies
-node_modules/
-npm/
-yarn/
-pnpm/
-.pnpm-store/
-bower_components/
-
-# Production builds
-dist/
-dist-ssr/
-build/
-.output/
-*.tar
-*.gz
-
-# Cache directories
-.cache/
-.temp/
-.tmp/
-*.tmp
-*.temp
-.rpt2_cache/
-.rts2_cache_cjs/
-.rts2_cache_es/
-.rts2_cache_umd/
-.parcel-cache/
-.webpack/
-
+﻿node_modules
+dist
 # Logs
-logs/
+logs
 *.log
 npm-debug.log*
 yarn-debug.log*
@@ -36,118 +9,18 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-# Environment variables
-.env
-.env.*
-!.env.example
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
+node_modules
+dist
+dist-ssr
+*.local
 
-# Editor
-.vscode/
-.idea/
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
-*.swp
-*.swo
-*~
-
-# OS
-.DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
-Thumbs.db
-desktop.ini
-
-# Coverage
-coverage/
-.nyc_output/
-*.lcov
-
-# Runtime data
-pids/
-*.pid
-*.seed
-*.pid.lock
-
-# Package manager files (choose ONE)
-package-lock.json
-# yarn.lock
-# pnpm-lock.yaml
-
-# Turbo
-.turbo/
-
-# Vue/Nuxt
-.nuxt/
-.nuxt-prod/
-.nuxt-dev/
-
-# VuePress
-.vuepress/dist
-.vuepress/.temp
-.vuepress/.cache
-
-# Auto-generated files
-*.d.ts
-*.js.map
-*.css.map
-*.min.js
-*.min.css
-
-# Temporary files
-*.salt
-*.sat
-*.tmp.*
-
-# Python (if applicable)
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-env/
-venv/
-ENV/
-env.bak/
-venv.bak/
-.pytest_cache/
-.coverage
-
-# Jupyter
-.ipynb_checkpoints/
-
-# MacOS
-.AppleDouble
-.LSOverride
-
-# Windows
-$RECYCLE.BIN/
-
-# Linux
-*~
-
-# IDE
 *.sw?
-.idea
-*.iws
-
-# Build outputs
-out/
-target/
-*.tsbuildinfo
-
-# Debug
-debug/
-*.pdb
-
-# Runtime data
-*.heapsnapshot
-*.cpuprofile
