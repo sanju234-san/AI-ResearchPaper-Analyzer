@@ -1,27 +1,35 @@
-// src/App.jsx
-function App() {
-  return (
-    <div className="bg-gradient-to-br from-blue-500 to-purple-600 text-white p-8 min-h-screen">
-      <div className="max-w-4xl mx-auto">
-        <h1 className="text-4xl font-bold mb-4">AI Research Paper Analyzer</h1>
-        <p className="text-xl mb-8">Upload and analyze research papers with AI-powered insights</p>
-        
-        <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6">
-          <h2 className="text-2xl font-semibold mb-4">Features</h2>
-          <ul className="list-disc list-inside space-y-2">
-            <li>PDF document analysis</li>
-            <li>Image-based paper processing</li>
-            <li>Q&A with research content</li>
-            <li>AI-powered insights</li>
-          </ul>
-        </div>
+import React, { useState } from "react";
+import HomePage from "./pages/HomePage";
+import UploadPage from "./pages/UploadPage";
+import AnalysisPage from "./pages/AnalysisPage";
+import DashboardPage from "./pages/DashboardPage";
 
-        <button className="mt-6 bg-white text-blue-600 px-6 py-3 rounded-lg font-semibold hover:bg-gray-100 transition duration-200">
-          Upload Research Paper
-        </button>
-      </div>
-    </div>
-  );
+function App() {
+  const [currentPage, setCurrentPage] = useState("home");
+  const [selectedPaper, setSelectedPaper] = useState(null);
+
+  const renderPage = () => {
+    switch (currentPage) {
+      case "home":
+        return <HomePage onNavigate={setCurrentPage} />;
+      case "upload":
+        return <UploadPage onNavigate={setCurrentPage} onUploadComplete={(paper) => {
+          setSelectedPaper(paper);
+          setCurrentPage("dashboard");
+        }} />;
+      case "analysis":
+        return <AnalysisPage paper={selectedPaper} onNavigate={setCurrentPage} />;
+      case "dashboard":
+        return <DashboardPage onNavigate={setCurrentPage} onViewAnalysis={(paper) => {
+          setSelectedPaper(paper);
+          setCurrentPage("analysis");
+        }} />;
+      default:
+        return <HomePage onNavigate={setCurrentPage} />;
+    }
+  };
+
+  return <div className="App">{renderPage()}</div>;
 }
 
 export default App;
