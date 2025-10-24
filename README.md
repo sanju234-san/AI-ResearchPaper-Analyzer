@@ -666,10 +666,9 @@ in the Software without restriction...
 
 Having issues? We're here to help!
 
-- 📧 **Email:** support@airesearchanalyzer.com
-- 💬 **Discussions:** [GitHub Discussions](https://github.com/yourusername/ai-research-analyzer/discussions)
-- 🐛 **Bug Reports:** [GitHub Issues](https://github.com/yourusername/ai-research-analyzer/issues)
-- 📖 **Documentation:** [Wiki](https://github.com/yourusername/ai-research-analyzer/wiki)
+- 📧 **Email:** sanjeevnidhir05@gmail.com
+- 💬 **Discussions:** [GitHub Discussions](https://github.com/sanju234-san/ai-research-analyzer/discussions)
+- 🐛 **Bug Reports:** [GitHub Issues](https://github.com/sanju234-san/ai-research-analyzer/issues)
 
 ---
 
@@ -701,21 +700,6 @@ Having issues? We're here to help!
 
 ---
 
-## 📊 Statistics
-
-<div align="center">
-
-![GitHub stars](https://img.shields.io/github/stars/yourusername/ai-research-analyzer?style=social)
-![GitHub forks](https://img.shields.io/github/forks/yourusername/ai-research-analyzer?style=social)
-![GitHub watchers](https://img.shields.io/github/watchers/yourusername/ai-research-analyzer?style=social)
-
-![GitHub issues](https://img.shields.io/github/issues/yourusername/ai-research-analyzer)
-![GitHub pull requests](https://img.shields.io/github/issues-pr/yourusername/ai-research-analyzer)
-![GitHub license](https://img.shields.io/github/license/yourusername/ai-research-analyzer)
-
-</div>
-
----
 
 <div align="center">
 
