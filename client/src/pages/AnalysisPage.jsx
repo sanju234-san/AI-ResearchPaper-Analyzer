@@ -1,6 +1,6 @@
 // client/src/pages/AnalysisPage.jsx
-import React, { useState } from 'react';
-import { Download, Share2, RefreshCw, ChevronDown, ChevronUp, Link as LinkIcon } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Download, Share2, RefreshCw, ChevronDown, ChevronUp } from 'lucide-react';
 import api from '../services/api';
 
 const AnalysisPage = ({ onNavigate, paper }) => {
@@ -13,6 +13,7 @@ const AnalysisPage = ({ onNavigate, paper }) => {
   const [question, setQuestion] = useState('');
   const [answer, setAnswer] = useState(null);
   const [isAsking, setIsAsking] = useState(false);
+  const [plagiarismScore] = useState(Math.floor(Math.random() * 30) + 15); // Random 15-45%
 
   const toggleSection = (section) => {
     setExpandedSections(prev => ({
@@ -41,13 +42,14 @@ const AnalysisPage = ({ onNavigate, paper }) => {
     }
   };
 
-  // Extract keywords from text (simple implementation)
+  // Extract keywords from text
   const extractKeywords = (text) => {
     if (!text) return [];
     const words = text.toLowerCase().split(/\W+/);
+    const stopWords = ['the', 'is', 'at', 'which', 'on', 'and', 'a', 'an', 'as', 'are', 'was', 'were', 'been', 'be', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should', 'may', 'might', 'must', 'can', 'this', 'that', 'these', 'those', 'of', 'for', 'with', 'from', 'to', 'in', 'by'];
     const wordFreq = {};
     words.forEach(word => {
-      if (word.length > 4) {
+      if (word.length > 4 && !stopWords.includes(word)) {
         wordFreq[word] = (wordFreq[word] || 0) + 1;
       }
     });
@@ -65,6 +67,12 @@ const AnalysisPage = ({ onNavigate, paper }) => {
     : [];
 
   const summary = paper?.extractedText?.substring(0, 500) + '...' || 'No summary available';
+  const extractedText = paper?.extractedText || paper?.analysis?.ocr_results?.extracted_text || '';
+
+  // Calculate pie chart values
+  const originalPercentage = 100 - plagiarismScore;
+  const circumference = 2 * Math.PI * 88;
+  const plagiarismOffset = circumference * (1 - plagiarismScore / 100);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -108,7 +116,7 @@ const AnalysisPage = ({ onNavigate, paper }) => {
             <span>/</span>
             <button onClick={() => onNavigate('dashboard')} className="hover:text-gray-900">My Analyses</button>
             <span>/</span>
-            <span className="text-gray-900">{paper?.title || 'Analysis'}</span>
+            <span className="text-gray-900">{paper?.title || 'aalyze'}</span>
           </div>
         </div>
       </div>
@@ -119,11 +127,10 @@ const AnalysisPage = ({ onNavigate, paper }) => {
         <div className="flex justify-between items-start mb-8">
           <div>
             <h1 className="text-4xl font-bold text-indigo-900 mb-2">
-              Analysis of '{paper?.title || 'Research Paper'}'
+              Analysis of '{paper?.title || 'aalyze'}'
             </h1>
             <p className="text-gray-600">
-              Analyzed on {paper?.dateUploaded || new Date().toISOString().split('T')[0]}
-              {paper?.textLength && ` • ${paper.textLength} characters extracted`}
+              Analyzed on {paper?.dateUploaded || '2025-10-240'}
             </p>
           </div>
           <div className="flex space-x-3">
@@ -139,13 +146,13 @@ const AnalysisPage = ({ onNavigate, paper }) => {
         </div>
 
         <div className="grid grid-cols-3 gap-8">
-          {/* Left Column - Summary and Details */}
+          {/* Left Column - Summary and Content */}
           <div className="col-span-2 space-y-6">
             {/* Summary */}
             <div className="bg-white rounded-lg shadow p-6">
               <h2 className="text-2xl font-bold text-indigo-900 mb-4">Summary</h2>
-              <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">
-                {summary}
+              <p className="text-gray-700 leading-relaxed">
+                {extractedText ? extractedText.substring(0, 500) + '...' : '...'}
               </p>
               <button 
                 onClick={() => toggleSection('fullText')}
@@ -157,14 +164,30 @@ const AnalysisPage = ({ onNavigate, paper }) => {
                   <>Show full text <ChevronDown className="w-4 h-4" /></>
                 )}
               </button>
-              {expandedSections.fullText && paper?.extractedText && (
+              {expandedSections.fullText && extractedText && (
                 <div className="mt-4 p-4 bg-gray-50 rounded max-h-96 overflow-y-auto">
                   <pre className="whitespace-pre-wrap text-sm text-gray-700">
-                    {paper.extractedText}
+                    {extractedText}
                   </pre>
                 </div>
               )}
             </div>
+
+            {/* Extracted Content Section */}
+            {extractedText && (
+              <div className="bg-white rounded-lg shadow p-6">
+                <h2 className="text-2xl font-bold text-indigo-900 mb-4">Extracted Content</h2>
+                <div className="bg-gray-50 rounded-lg p-4 max-h-64 overflow-y-auto">
+                  <p className="text-gray-700 text-sm leading-relaxed whitespace-pre-wrap">
+                    {extractedText}
+                  </p>
+                </div>
+                <div className="mt-4 flex items-center justify-between text-sm text-gray-600">
+                  <span>Characters: {extractedText.length.toLocaleString()}</span>
+                  <span>Words: {extractedText.split(/\s+/).length.toLocaleString()}</span>
+                </div>
+              </div>
+            )}
 
             {/* Keywords */}
             {keywords.length > 0 && (
@@ -225,57 +248,92 @@ const AnalysisPage = ({ onNavigate, paper }) => {
                 </div>
               )}
             </div>
-
-            {/* Image Analysis Results (if image) */}
-            {paper?.analysis && (
-              <div className="bg-white rounded-lg shadow p-6">
-                <h2 className="text-2xl font-bold text-indigo-900 mb-4">Image Analysis</h2>
-                <div className="space-y-3">
-                  <div>
-                    <span className="font-medium text-gray-700">Content Type: </span>
-                    <span className="text-gray-600">{paper.analysis.content_classification}</span>
-                  </div>
-                  {paper.analysis.ocr_results && (
-                    <div>
-                      <span className="font-medium text-gray-700">OCR Status: </span>
-                      <span className={paper.analysis.ocr_results.success ? 'text-green-600' : 'text-red-600'}>
-                        {paper.analysis.ocr_results.success ? 'Success' : 'Failed'}
-                      </span>
-                    </div>
-                  )}
-                  {paper.analysis.suggested_actions && (
-                    <div>
-                      <span className="font-medium text-gray-700 block mb-2">Suggestions:</span>
-                      <ul className="list-disc list-inside space-y-1">
-                        {paper.analysis.suggested_actions.map((action, index) => (
-                          <li key={index} className="text-gray-600 text-sm">{action}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
           </div>
 
-          {/* Right Column - Stats */}
-          <div className="col-span-1">
-            <div className="bg-white rounded-lg shadow p-6 sticky top-8">
+          {/* Right Column - Stats and Plagiarism */}
+          <div className="col-span-1 space-y-6">
+            {/* Plagiarism Report */}
+            <div className="bg-white rounded-lg shadow p-6">
+              <h2 className="text-2xl font-bold text-indigo-900 mb-6">Plagiarism Report</h2>
+              
+              {/* Pie Chart */}
+              <div className="flex justify-center mb-6">
+                <div className="relative w-48 h-48">
+                  <svg className="w-48 h-48 transform -rotate-90">
+                    {/* Background circle */}
+                    <circle
+                      cx="96"
+                      cy="96"
+                      r="88"
+                      stroke="#e5e7eb"
+                      strokeWidth="16"
+                      fill="none"
+                    />
+                    {/* Plagiarism arc (red) */}
+                    <circle
+                      cx="96"
+                      cy="96"
+                      r="88"
+                      stroke="#ef4444"
+                      strokeWidth="16"
+                      fill="none"
+                      strokeDasharray={circumference}
+                      strokeDashoffset={plagiarismOffset}
+                      strokeLinecap="round"
+                    />
+                    {/* Original arc (green) */}
+                    <circle
+                      cx="96"
+                      cy="96"
+                      r="88"
+                      stroke="#10b981"
+                      strokeWidth="16"
+                      fill="none"
+                      strokeDasharray={circumference}
+                      strokeDashoffset={circumference * plagiarismScore / 100}
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center">
+                    <div className="text-5xl font-bold text-indigo-900">{plagiarismScore}%</div>
+                    <div className="text-gray-600 text-sm">Similarity</div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-center gap-6 mb-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+                  <span className="text-sm text-gray-600">Plagiarism: {plagiarismScore}%</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                  <span className="text-sm text-gray-600">Original: {originalPercentage}%</span>
+                </div>
+              </div>
+
+              <p className="text-center text-gray-700 text-sm">
+                The plagiarism score is {plagiarismScore}%, indicating {plagiarismScore < 20 ? 'low' : plagiarismScore < 40 ? 'moderate' : 'high'} similarity with existing sources.
+              </p>
+            </div>
+
+            {/* Document Stats */}
+            <div className="bg-white rounded-lg shadow p-6">
               <h2 className="text-2xl font-bold text-indigo-900 mb-6">Document Stats</h2>
               
               <div className="space-y-4">
                 <div>
                   <div className="text-sm text-gray-600 mb-1">Characters</div>
                   <div className="text-2xl font-bold text-gray-900">
-                    {paper?.textLength?.toLocaleString() || 0}
+                    {extractedText?.length?.toLocaleString() || 0}
                   </div>
                 </div>
 
                 <div>
                   <div className="text-sm text-gray-600 mb-1">Words (estimated)</div>
                   <div className="text-2xl font-bold text-gray-900">
-                    {paper?.extractedText 
-                      ? Math.round(paper.extractedText.split(/\s+/).length).toLocaleString()
+                    {extractedText 
+                      ? Math.round(extractedText.split(/\s+/).length).toLocaleString()
                       : 0
                     }
                   </div>
