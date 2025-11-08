@@ -1,6 +1,7 @@
 ﻿from fastapi import FastAPI, File, UploadFile, HTTPException, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel
 import os
 import requests
 import base64
@@ -101,6 +102,10 @@ except Exception as e:
 # Create necessary directories
 os.makedirs("data/uploads", exist_ok=True)
 os.makedirs("data/vector_store", exist_ok=True)
+
+# Pydantic model for summary request
+class SummaryRequest(BaseModel):
+    text: str
 
 def call_ollama_api(prompt: str, context: str = None, document_type: str = "research") -> str:
     """Call Ollama local LLM API with smarter context handling"""
@@ -217,6 +222,7 @@ async def root():
             "analyze_pdf": "/analyze-pdf",
             "analyze_image": "/analyze-image",
             "ask_question": "/ask-question",
+            "generate_summary": "/generate-summary",
             "documents": "/documents",
             "paper_overview": "/paper-overview",
             "ollama_status": "/ollama-status"
@@ -258,6 +264,71 @@ async def ollama_status():
             "message": f"Cannot connect to Ollama server: {str(e)}"
         }
 
+@app.post("/generate-summary")
+async def generate_summary(request: SummaryRequest):
+    """Generate AI-powered summary of research paper using Ollama"""
+    try:
+        if not OLLAMA_AVAILABLE:
+            raise HTTPException(status_code=503, detail="Ollama is not available")
+        
+        text = request.text
+        if not text or len(text.strip()) < 50:
+            raise HTTPException(status_code=400, detail="Text is too short to summarize")
+        
+        print(f"📝 Generating summary for text ({len(text)} characters)...")
+        
+        # Truncate text if too long (keep first 4000 chars for context)
+        truncated_text = text[:4000] if len(text) > 4000 else text
+        
+        prompt = f"""Please provide a comprehensive and detailed summary of this research paper. Include:
+
+1. Main topic and research objectives
+2. Key methodology used
+3. Important findings and results
+4. Main contributions
+5. Conclusions
+
+Research Paper Content:
+{truncated_text}
+
+Provide a well-structured, informative summary that captures the essence of the research paper."""
+        
+        payload = {
+            "model": OLLAMA_MODEL,
+            "prompt": prompt,
+            "stream": False,
+            "options": {
+                "temperature": 0.3,
+                "top_p": 0.9,
+                "num_predict": 1000,
+                "repeat_penalty": 1.1
+            }
+        }
+        
+        response = requests.post(f"{OLLAMA_BASE_URL}/api/generate", json=payload, timeout=120)
+        
+        if response.status_code == 200:
+            result = response.json()
+            summary = result.get("response", "").strip()
+            print(f"✅ Summary generated ({len(summary)} characters)")
+            
+            return JSONResponse(content={
+                "success": True,
+                "summary": summary,
+                "model_used": OLLAMA_MODEL,
+                "original_length": len(text),
+                "summary_length": len(summary)
+            })
+        else:
+            print(f"❌ Ollama API error: {response.status_code}")
+            raise HTTPException(status_code=500, detail="Failed to generate summary")
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Summary generation error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error generating summary: {str(e)}")
+
 @app.post("/analyze-pdf")
 async def analyze_pdf(file: UploadFile = File(...), question: str = Form(None)):
     if not pdf_processor:
@@ -274,7 +345,6 @@ async def analyze_pdf(file: UploadFile = File(...), question: str = Form(None)):
         
         # Validate PDF file first
         if not _is_valid_pdf(file_path):
-            # Try to read the file to get more specific error
             try:
                 with open(file_path, "rb") as f:
                     header = f.read(10)
@@ -299,7 +369,7 @@ async def analyze_pdf(file: UploadFile = File(...), question: str = Form(None)):
             "success": True,
             "filename": file.filename,
             "text_length": len(text_content),
-            "extracted_text": text_content[:500] + "..." if len(text_content) > 500 else text_content
+            "extracted_text": text_content
         }
         
         # If user asked a question, use Ollama to answer it
@@ -313,12 +383,6 @@ async def analyze_pdf(file: UploadFile = File(...), question: str = Form(None)):
                 "ai_model": OLLAMA_MODEL,
                 "paper_specific": True
             }
-        # If no specific question but user wants summary
-        elif question and any(keyword in question.lower() for keyword in ['summary', 'summarize', 'simplify', 'overview']):
-            print("📝 Generating summary with Ollama...")
-            summary_prompt = "Please provide a comprehensive summary of this research paper:"
-            summary = call_ollama_api(summary_prompt, text_content, "research_paper")
-            response_data["summary"] = summary
         
         return JSONResponse(content=response_data)
     
@@ -366,6 +430,7 @@ async def analyze_image(file: UploadFile = File(...), question: str = Form(None)
             analysis["ocr_results"].get("extracted_text")):
             
             text_content = analysis["ocr_results"]["extracted_text"]
+            response_data["extracted_text"] = text_content
             
             # Add to RAG system
             if rag_system:
@@ -382,13 +447,6 @@ async def analyze_image(file: UploadFile = File(...), question: str = Form(None)
                     "ai_model": OLLAMA_MODEL,
                     "paper_specific": True
                 }
-            
-            # If user wants summary
-            elif question and any(keyword in question.lower() for keyword in ['summary', 'summarize', 'simplify', 'overview']):
-                print("📝 Generating summary from image with Ollama...")
-                summary_prompt = "Please summarize the content extracted from this research image:"
-                summary = call_ollama_api(summary_prompt, text_content, "research_image")
-                response_data["summary"] = summary
         
         return JSONResponse(content=response_data)
         
