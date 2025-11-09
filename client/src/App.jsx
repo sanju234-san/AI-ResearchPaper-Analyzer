@@ -281,7 +281,7 @@ const HomePage = ({ onNavigate, userName }) => {
           </span>
         </div>
         <h1 className="text-6xl font-bold text-gray-900 mb-6 leading-tight">
-          <Typewriter className='bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent' text="Unlock Deaper insights from Your research papers" />
+          <Typewriter className='bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent' text="Unlock Deaper Insights From Your Research Papers" />
           <span className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
           
           </span>
