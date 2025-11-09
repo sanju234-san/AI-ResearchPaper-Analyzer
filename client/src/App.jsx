@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Upload, Download, Share2, ChevronDown, ChevronUp, Search, BookOpen, BarChart3, Settings, LogOut, User, Menu, X, Eye, EyeOff } from 'lucide-react';
-
+import Typewriter from './components/Typewriter.jsx';
 // API Service
 const API_BASE_URL = 'http://localhost:8000';
 
@@ -97,6 +97,7 @@ const LoginPage = ({ onLogin, onNavigate }) => {
           </div>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">AI Research Analyzer</h1>
           <p className="text-gray-600">Unlock insights from research papers</p>
+          <Typewriter text="Unlock insights from research papers" />
         </div>
 
         <div className="bg-white rounded-2xl shadow-2xl p-8">
@@ -280,9 +281,9 @@ const HomePage = ({ onNavigate, userName }) => {
           </span>
         </div>
         <h1 className="text-6xl font-bold text-gray-900 mb-6 leading-tight">
-          Unlock Deeper Insights from<br/>
+          <Typewriter className='bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent' text="Unlock Deaper insights from Your research papers" />
           <span className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-            Your Research Papers
+          
           </span>
         </h1>
         <p className="text-xl text-gray-600 mb-10 max-w-2xl mx-auto">
