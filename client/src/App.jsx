@@ -1,6 +1,246 @@
-import React, { useState } from 'react';
-import { Upload, Download, Share2, ChevronDown, ChevronUp, Search, BookOpen, BarChart3, Settings, LogOut, User, Menu, X, Eye, EyeOff } from 'lucide-react';
-import Typewriter from './components/Typewriter.jsx';
+import React, { useState, useEffect } from 'react';
+import { Upload, Download, Share2, ChevronDown, ChevronUp, Search, BookOpen, BarChart3, Settings, LogOut, User, Eye, EyeOff } from 'lucide-react';
+
+// Typewriter Component
+const Typewriter = ({ text, className = '' }) => {
+  const [displayText, setDisplayText] = useState('');
+  const [currentIndex, setCurrentIndex] = useState(0);
+
+  useEffect(() => {
+    if (currentIndex < text.length) {
+      const timeout = setTimeout(() => {
+        setDisplayText(prev => prev + text[currentIndex]);
+        setCurrentIndex(prev => prev + 1);
+      }, 80);
+      return () => clearTimeout(timeout);
+    }
+  }, [currentIndex, text]);
+
+  return <span className={className}>{displayText}<span className="animate-pulse">|</span></span>;
+};
+
+// Beautiful Loading Animation Component
+const LoadingAnimation = ({ uploadProgress, fileName }) => {
+  const [analysisStage, setAnalysisStage] = useState('upload');
+  const [particlesVisible, setParticlesVisible] = useState(true);
+
+  useEffect(() => {
+    if (uploadProgress < 25) {
+      setAnalysisStage('upload');
+    } else if (uploadProgress < 50) {
+      setAnalysisStage('extracting');
+    } else if (uploadProgress < 75) {
+      setAnalysisStage('analyzing');
+    } else {
+      setAnalysisStage('finalizing');
+    }
+  }, [uploadProgress]);
+
+  const getStageInfo = () => {
+    switch (analysisStage) {
+      case 'upload':
+        return {
+          title: 'Uploading Document',
+          subtitle: 'Securely transferring your research paper',
+          icon: '📤',
+          gradient: 'from-blue-500 via-blue-600 to-indigo-600'
+        };
+      case 'extracting':
+        return {
+          title: 'Extracting Content',
+          subtitle: 'Reading and parsing document structure',
+          icon: '📖',
+          gradient: 'from-purple-500 via-purple-600 to-pink-600'
+        };
+      case 'analyzing':
+        return {
+          title: 'AI Analysis in Progress',
+          subtitle: 'Identifying key concepts and patterns',
+          icon: '🤖',
+          gradient: 'from-green-500 via-emerald-600 to-teal-600'
+        };
+      case 'finalizing':
+        return {
+          title: 'Finalizing Results',
+          subtitle: 'Preparing your comprehensive analysis',
+          icon: '✨',
+          gradient: 'from-orange-500 via-pink-600 to-rose-600'
+        };
+      default:
+        return {
+          title: 'Processing',
+          subtitle: 'Please wait',
+          icon: '⏳',
+          gradient: 'from-blue-500 to-purple-600'
+        };
+    }
+  };
+
+  const stageInfo = getStageInfo();
+
+  return (
+    <div className="fixed inset-0 bg-gradient-to-br from-slate-900 via-purple-900 to-indigo-900 flex items-center justify-center z-50 overflow-hidden">
+      {/* Animated Background Particles */}
+      {particlesVisible && (
+        <div className="absolute inset-0 overflow-hidden">
+          {[...Array(20)].map((_, i) => (
+            <div
+              key={i}
+              className="absolute w-2 h-2 bg-white rounded-full opacity-20"
+              style={{
+                left: `${Math.random() * 100}%`,
+                top: `${Math.random() * 100}%`,
+                animation: `float ${3 + Math.random() * 4}s ease-in-out infinite`,
+                animationDelay: `${Math.random() * 2}s`
+              }}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* Animated Gradient Orbs */}
+      <div className="absolute inset-0 opacity-30">
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-500 rounded-full filter blur-3xl animate-pulse" style={{ animationDuration: '4s' }} />
+        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple-500 rounded-full filter blur-3xl animate-pulse" style={{ animationDuration: '5s', animationDelay: '1s' }} />
+        <div className="absolute top-1/2 left-1/2 w-96 h-96 bg-pink-500 rounded-full filter blur-3xl animate-pulse" style={{ animationDuration: '6s', animationDelay: '2s' }} />
+      </div>
+
+      {/* Main Content */}
+      <div className="relative z-10 max-w-2xl w-full mx-auto px-8">
+        {/* Central Animation Circle */}
+        <div className="flex flex-col items-center mb-12">
+          <div className="relative w-64 h-64 mb-8">
+            {/* Outer rotating rings */}
+            <div className="absolute inset-0 rounded-full border-4 border-blue-400/30 animate-spin" style={{ animationDuration: '3s' }} />
+            <div className="absolute inset-2 rounded-full border-4 border-purple-400/30 animate-spin" style={{ animationDuration: '2s', animationDirection: 'reverse' }} />
+            <div className="absolute inset-4 rounded-full border-4 border-pink-400/30 animate-spin" style={{ animationDuration: '4s' }} />
+            
+            {/* Center circle with icon */}
+            <div className={`absolute inset-8 rounded-full bg-gradient-to-br ${stageInfo.gradient} animate-pulse flex items-center justify-center shadow-2xl`}>
+              <span className="text-7xl animate-bounce">{stageInfo.icon}</span>
+            </div>
+
+            {/* Orbiting particles */}
+            <div className="absolute inset-0 animate-spin" style={{ animationDuration: '4s' }}>
+              <div className="absolute top-0 left-1/2 w-4 h-4 bg-blue-400 rounded-full -ml-2 shadow-lg" />
+            </div>
+            <div className="absolute inset-0 animate-spin" style={{ animationDuration: '4s', animationDelay: '1s' }}>
+              <div className="absolute top-0 left-1/2 w-4 h-4 bg-purple-400 rounded-full -ml-2 shadow-lg" />
+            </div>
+            <div className="absolute inset-0 animate-spin" style={{ animationDuration: '4s', animationDelay: '2s' }}>
+              <div className="absolute top-0 left-1/2 w-4 h-4 bg-pink-400 rounded-full -ml-2 shadow-lg" />
+            </div>
+          </div>
+
+          {/* Status Text */}
+          <div className="text-center space-y-3 mb-8">
+            <h2 className={`text-4xl font-bold bg-gradient-to-r ${stageInfo.gradient} bg-clip-text text-transparent animate-pulse`}>
+              {stageInfo.title}
+            </h2>
+            <p className="text-xl text-blue-200">{stageInfo.subtitle}</p>
+            <p className="text-sm text-blue-300/70 max-w-md truncate">
+              📄 {fileName}
+            </p>
+          </div>
+        </div>
+
+        {/* Progress Bar */}
+        <div className="space-y-4">
+          <div className="flex justify-between text-sm font-medium text-blue-200">
+            <span>Analysis Progress</span>
+            <span className="text-white font-bold">{uploadProgress}%</span>
+          </div>
+          
+          <div className="relative w-full bg-white/10 backdrop-blur-sm rounded-full h-4 overflow-hidden shadow-inner border border-white/20">
+            {/* Background shimmer effect */}
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-shimmer" />
+            
+            {/* Progress fill */}
+            <div 
+              className={`relative h-full bg-gradient-to-r ${stageInfo.gradient} rounded-full transition-all duration-500 ease-out shadow-lg`}
+              style={{ width: `${uploadProgress}%` }}
+            >
+              {/* Inner glow */}
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer" />
+            </div>
+            
+            {/* Progress indicator dot */}
+            <div 
+              className="absolute top-1/2 -translate-y-1/2 w-6 h-6 bg-white rounded-full shadow-lg transition-all duration-500 border-2 border-blue-400"
+              style={{ left: `calc(${uploadProgress}% - 12px)` }}
+            >
+              <div className="absolute inset-0 bg-white rounded-full animate-ping opacity-75" />
+            </div>
+          </div>
+        </div>
+
+        {/* Stage Indicators */}
+        <div className="mt-12 grid grid-cols-4 gap-4">
+          {['upload', 'extracting', 'analyzing', 'finalizing'].map((stage, index) => {
+            const stageProgress = (index + 1) * 25;
+            const isActive = uploadProgress >= (index * 25);
+            const isCurrent = analysisStage === stage;
+            
+            return (
+              <div 
+                key={stage}
+                className={`relative flex flex-col items-center transition-all duration-500 ${
+                  isActive ? 'scale-110' : 'scale-100 opacity-50'
+                }`}
+              >
+                <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-2 transition-all duration-500 ${
+                  isCurrent 
+                    ? `bg-gradient-to-br ${stageInfo.gradient} shadow-lg shadow-blue-500/50 animate-pulse` 
+                    : isActive 
+                    ? 'bg-green-500' 
+                    : 'bg-white/20'
+                }`}>
+                  {isActive ? (
+                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                    </svg>
+                  ) : (
+                    <div className="w-3 h-3 bg-white/50 rounded-full" />
+                  )}
+                </div>
+                <span className={`text-xs font-medium text-center capitalize ${
+                  isActive ? 'text-white' : 'text-blue-300/50'
+                }`}>
+                  {stage}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Fun Facts */}
+        <div className="mt-12 p-6 bg-white/5 backdrop-blur-md rounded-2xl border border-white/10">
+          <p className="text-center text-blue-100 text-sm leading-relaxed">
+            💡 <span className="font-semibold">Did you know?</span> Our AI analyzes over{' '}
+            <span className="text-white font-bold">10,000 research papers</span> monthly,{' '}
+            helping researchers save countless hours!
+          </p>
+        </div>
+      </div>
+
+      {/* CSS for shimmer animation */}
+      <style>{`
+        @keyframes float {
+          0%, 100% { transform: translateY(0px); }
+          50% { transform: translateY(-20px); }
+        }
+        @keyframes shimmer {
+          0% { transform: translateX(-100%); }
+          100% { transform: translateX(100%); }
+        }
+        .animate-shimmer {
+          animation: shimmer 2s infinite;
+        }
+      `}</style>
+    </div>
+  );
+};
+
 // API Service
 const API_BASE_URL = 'http://localhost:8000';
 
@@ -86,8 +326,8 @@ const LoginPage = ({ onLogin, onNavigate }) => {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-20 left-20 w-72 h-72 bg-blue-200 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-pulse"></div>
-        <div className="absolute top-40 right-20 w-72 h-72 bg-purple-200 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-pulse delay-1000"></div>
-        <div className="absolute bottom-20 left-1/2 w-72 h-72 bg-indigo-200 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-pulse delay-500"></div>
+        <div className="absolute top-40 right-20 w-72 h-72 bg-purple-200 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-pulse" style={{animationDelay: '1s'}}></div>
+        <div className="absolute bottom-20 left-1/2 w-72 h-72 bg-indigo-200 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-pulse" style={{animationDelay: '0.5s'}}></div>
       </div>
 
       <div className="relative w-full max-w-md">
@@ -97,7 +337,6 @@ const LoginPage = ({ onLogin, onNavigate }) => {
           </div>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">AI Research Analyzer</h1>
           <p className="text-gray-600">Unlock insights from research papers</p>
-          <Typewriter text="Unlock insights from research papers" />
         </div>
 
         <div className="bg-white rounded-2xl shadow-2xl p-8">
@@ -281,10 +520,7 @@ const HomePage = ({ onNavigate, userName }) => {
           </span>
         </div>
         <h1 className="text-6xl font-bold text-gray-900 mb-6 leading-tight">
-          <Typewriter className='bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent' text="Unlock Deaper Insights From Your Research Papers" />
-          <span className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-          
-          </span>
+          <Typewriter className='bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent' text="Unlock Deeper Insights From Your Research Papers" />
         </h1>
         <p className="text-xl text-gray-600 mb-10 max-w-2xl mx-auto">
           Analyze research papers with cutting-edge AI technology. Get summaries, detect plagiarism, and extract key insights instantly.
@@ -399,13 +635,23 @@ const UploadPage = ({ onNavigate, onUploadComplete, userName }) => {
     if (!file) return;
 
     setIsUploading(true);
-    setUploadProgress(10);
+    setUploadProgress(0);
     setError(null);
 
     try {
-      let result;
-      setUploadProgress(30);
+      // Simulate smooth progress
+      const progressInterval = setInterval(() => {
+        setUploadProgress(prev => {
+          if (prev >= 90) {
+            clearInterval(progressInterval);
+            return prev;
+          }
+          return prev + 2;
+        });
+      }, 100);
 
+      let result;
+      
       if (file.type === 'application/pdf') {
         result = await api.analyzePDF(file, question || null);
       } else if (file.type.startsWith('image/')) {
@@ -414,6 +660,7 @@ const UploadPage = ({ onNavigate, onUploadComplete, userName }) => {
         throw new Error('Unsupported file type');
       }
 
+      clearInterval(progressInterval);
       setUploadProgress(100);
 
       const paper = {
@@ -433,20 +680,24 @@ const UploadPage = ({ onNavigate, onUploadComplete, userName }) => {
       existingPapers.push(paper);
       localStorage.setItem('papers', JSON.stringify(existingPapers));
 
+      // Wait for animation to complete
       setTimeout(() => {
         onUploadComplete(paper);
-      }, 500);
+      }, 1500);
 
     } catch (err) {
       setError(err.message || 'Upload failed. Please try again.');
       setUploadProgress(0);
-    } finally {
       setIsUploading(false);
     }
   };
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {isUploading && (
+        <LoadingAnimation uploadProgress={uploadProgress} fileName={file?.name || 'Document'} />
+      )}
+      
       <header className="bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-8 py-4 flex justify-between items-center">
           <div className="flex items-center gap-3">
@@ -534,27 +785,12 @@ const UploadPage = ({ onNavigate, onUploadComplete, userName }) => {
           />
         </div>
 
-        {isUploading && (
-          <div className="mb-8">
-            <div className="flex justify-between text-sm text-gray-600 mb-2">
-              <span>Analyzing paper...</span>
-              <span>{uploadProgress}%</span>
-            </div>
-            <div className="w-full bg-gray-200 rounded-full h-2">
-              <div 
-                className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                style={{ width: `${uploadProgress}%` }}
-              />
-            </div>
-          </div>
-        )}
-
         <button
           onClick={handleStartAnalysis}
           disabled={!file || isUploading}
           className={`w-full py-4 rounded-lg text-lg font-semibold transition-all ${
             file && !isUploading
-              ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:shadow-lg'
+              ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:shadow-lg transform hover:scale-105'
               : 'bg-gray-300 text-gray-500 cursor-not-allowed'
           }`}
         >
@@ -571,7 +807,7 @@ const DashboardPage = ({ onNavigate, onViewAnalysis, userName }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
 
-  React.useEffect(() => {
+  useEffect(() => {
     loadPapers();
   }, []);
 
