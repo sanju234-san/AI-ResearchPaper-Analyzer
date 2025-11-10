@@ -1,177 +1,78 @@
 import React, { useState, useEffect } from 'react';
-import { Upload, Download, Share2, ChevronDown, ChevronUp, Search, BookOpen, BarChart3, Settings, LogOut, User, Eye, EyeOff, Sparkles, Zap, Brain, Rocket } from 'lucide-react';
+import { Upload, Download, Share2, ChevronDown, ChevronUp, Search, BookOpen, BarChart3, Settings, LogOut, User, Eye, EyeOff } from 'lucide-react';
 
-// Enhanced Animated Mascot with Floating Animation
-const AnimatedMascot = () => {
-  const [position, setPosition] = useState({ x: 0, y: 0 });
-  const [isVisible, setIsVisible] = useState(false);
-  const [isHovered, setIsHovered] = useState(false);
-
-  useEffect(() => {
-    setIsVisible(true);
-    const interval = setInterval(() => {
-      setPosition({
-        x: Math.sin(Date.now() / 1000) * 20,
-        y: Math.cos(Date.now() / 1500) * 15
-      });
-    }, 50);
-    return () => clearInterval(interval);
-  }, []);
-
-  return (
-    <div 
-      className={`fixed bottom-8 right-8 z-50 transition-all duration-1000 ${isVisible ? 'opacity-100 scale-100' : 'opacity-0 scale-0'}`}
-      style={{
-        transform: `translate(${position.x}px, ${position.y}px)`
-      }}
-    >
-      <div 
-        className="relative group cursor-pointer"
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
-      >
-        {/* Enhanced Glow effect */}
-        <div className={`absolute inset-0 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 rounded-full blur-xl transition-all duration-1000 ${
-          isHovered ? 'opacity-80 scale-125' : 'opacity-60 scale-100'
-        } animate-pulse`}></div>
-        
-        {/* Enhanced Mascot with floating animation */}
-        <div className={`relative w-24 h-24 bg-gradient-to-br from-blue-600 to-purple-600 rounded-full flex items-center justify-center shadow-2xl transform transition-all duration-500 ${
-          isHovered ? 'scale-110 rotate-12' : 'scale-100 rotate-0'
-        } animate-float`}>
-          <Brain className="w-12 h-12 text-white animate-pulse" />
-          
-          {/* Enhanced Orbiting particles */}
-          <div className="absolute inset-0 animate-spin" style={{animationDuration: '3s'}}>
-            <div className="absolute top-0 left-1/2 w-3 h-3 bg-yellow-400 rounded-full -ml-1.5 shadow-lg animate-ping"></div>
-          </div>
-          <div className="absolute inset-0 animate-spin" style={{animationDuration: '4s', animationDirection: 'reverse'}}>
-            <div className="absolute top-0 left-1/2 w-2 h-2 bg-pink-400 rounded-full -ml-1 shadow-lg animate-bounce"></div>
-          </div>
-          
-          {/* Particle burst on hover */}
-          {isHovered && (
-            <>
-              {[...Array(8)].map((_, i) => (
-                <div
-                  key={i}
-                  className="absolute w-2 h-2 bg-white rounded-full opacity-70"
-                  style={{
-                    transform: `rotate(${i * 45}deg) translateY(-40px)`,
-                    animation: `particleBurst 0.6s ease-out forwards`,
-                    animationDelay: `${i * 0.1}s`
-                  }}
-                />
-              ))}
-            </>
-          )}
-        </div>
-
-        {/* Enhanced Tooltip */}
-        <div className={`absolute bottom-full right-0 mb-2 px-4 py-2 bg-gray-900 text-white text-sm rounded-lg transition-all duration-300 ${
-          isHovered ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'
-        } whitespace-nowrap shadow-xl backdrop-blur-sm`}>
-          <div className="flex items-center gap-2">
-            <Sparkles className="w-4 h-4 animate-spin" />
-            AI Assistant Ready! 🚀
-            <Sparkles className="w-4 h-4 animate-spin" />
-          </div>
-          <div className="absolute top-full right-4 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// Enhanced Typewriter with cursor animation
-const Typewriter = ({ text, className = '', speed = 80 }) => {
+// Typewriter Component
+const Typewriter = ({ text, className = '' }) => {
   const [displayText, setDisplayText] = useState('');
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [showCursor, setShowCursor] = useState(true);
-
-  useEffect(() => {
-    const cursorInterval = setInterval(() => {
-      setShowCursor(prev => !prev);
-    }, 500);
-
-    return () => clearInterval(cursorInterval);
-  }, []);
 
   useEffect(() => {
     if (currentIndex < text.length) {
       const timeout = setTimeout(() => {
         setDisplayText(prev => prev + text[currentIndex]);
         setCurrentIndex(prev => prev + 1);
-      }, speed);
+      }, 80);
       return () => clearTimeout(timeout);
     }
-  }, [currentIndex, text, speed]);
+  }, [currentIndex, text]);
 
-  return (
-    <span className={className}>
-      {displayText}
-      <span className={`inline-block w-0.5 h-1em bg-current ml-1 transition-opacity duration-200 ${
-        showCursor ? 'opacity-100' : 'opacity-0'
-      }`}>|</span>
-    </span>
-  );
+  return <span className={className}>{displayText}<span className="animate-pulse">|</span></span>;
 };
 
-// Enhanced Loading Animation with Character
+// Beautiful Loading Animation Component
 const LoadingAnimation = ({ uploadProgress, fileName }) => {
   const [analysisStage, setAnalysisStage] = useState('upload');
-  const [characterPosition, setCharacterPosition] = useState(0);
+  const [particlesVisible, setParticlesVisible] = useState(true);
 
   useEffect(() => {
-    if (uploadProgress < 25) setAnalysisStage('upload');
-    else if (uploadProgress < 50) setAnalysisStage('extracting');
-    else if (uploadProgress < 75) setAnalysisStage('analyzing');
-    else setAnalysisStage('finalizing');
-  }, [uploadProgress]);
-
-  useEffect(() => {
-    // Animate character position based on progress
-    const targetPosition = (uploadProgress / 100) * 80;
-    setCharacterPosition(targetPosition);
+    if (uploadProgress < 25) {
+      setAnalysisStage('upload');
+    } else if (uploadProgress < 50) {
+      setAnalysisStage('extracting');
+    } else if (uploadProgress < 75) {
+      setAnalysisStage('analyzing');
+    } else {
+      setAnalysisStage('finalizing');
+    }
   }, [uploadProgress]);
 
   const getStageInfo = () => {
     switch (analysisStage) {
-      case 'upload': return { 
-        title: 'Uploading Document', 
-        subtitle: 'Securely transferring your research paper', 
-        icon: '📤', 
-        gradient: 'from-blue-500 via-blue-600 to-indigo-600',
-        character: '🚀'
-      };
-      case 'extracting': return { 
-        title: 'Extracting Content', 
-        subtitle: 'Reading and parsing document structure', 
-        icon: '📖', 
-        gradient: 'from-purple-500 via-purple-600 to-pink-600',
-        character: '🔍'
-      };
-      case 'analyzing': return { 
-        title: 'AI Analysis in Progress', 
-        subtitle: 'Identifying key concepts and patterns', 
-        icon: '🤖', 
-        gradient: 'from-green-500 via-emerald-600 to-teal-600',
-        character: '🧠'
-      };
-      case 'finalizing': return { 
-        title: 'Finalizing Results', 
-        subtitle: 'Preparing your comprehensive analysis', 
-        icon: '✨', 
-        gradient: 'from-orange-500 via-pink-600 to-rose-600',
-        character: '🎯'
-      };
-      default: return { 
-        title: 'Processing', 
-        subtitle: 'Please wait', 
-        icon: '⏳', 
-        gradient: 'from-blue-500 to-purple-600',
-        character: '⚡'
-      };
+      case 'upload':
+        return {
+          title: 'Uploading Document',
+          subtitle: 'Securely transferring your research paper',
+          icon: '📤',
+          gradient: 'from-blue-500 via-blue-600 to-indigo-600'
+        };
+      case 'extracting':
+        return {
+          title: 'Extracting Content',
+          subtitle: 'Reading and parsing document structure',
+          icon: '📖',
+          gradient: 'from-purple-500 via-purple-600 to-pink-600'
+        };
+      case 'analyzing':
+        return {
+          title: 'AI Analysis in Progress',
+          subtitle: 'Identifying key concepts and patterns',
+          icon: '🤖',
+          gradient: 'from-green-500 via-emerald-600 to-teal-600'
+        };
+      case 'finalizing':
+        return {
+          title: 'Finalizing Results',
+          subtitle: 'Preparing your comprehensive analysis',
+          icon: '✨',
+          gradient: 'from-orange-500 via-pink-600 to-rose-600'
+        };
+      default:
+        return {
+          title: 'Processing',
+          subtitle: 'Please wait',
+          icon: '⏳',
+          gradient: 'from-blue-500 to-purple-600'
+        };
     }
   };
 
@@ -179,136 +80,236 @@ const LoadingAnimation = ({ uploadProgress, fileName }) => {
 
   return (
     <div className="fixed inset-0 bg-gradient-to-br from-slate-900 via-purple-900 to-indigo-900 flex items-center justify-center z-50 overflow-hidden">
-      {/* Enhanced Background Particles */}
-      {[...Array(30)].map((_, i) => (
-        <div 
-          key={i} 
-          className="absolute w-2 h-2 bg-white rounded-full opacity-20 animate-float"
-          style={{ 
-            left: `${Math.random() * 100}%`, 
-            top: `${Math.random() * 100}%`,
-            animationDelay: `${Math.random() * 2}s`,
-            animationDuration: `${3 + Math.random() * 4}s`
-          }} 
-        />
-      ))}
+      {/* Animated Background Particles */}
+      {particlesVisible && (
+        <div className="absolute inset-0 overflow-hidden">
+          {[...Array(20)].map((_, i) => (
+            <div
+              key={i}
+              className="absolute w-2 h-2 bg-white rounded-full opacity-20"
+              style={{
+                left: `${Math.random() * 100}%`,
+                top: `${Math.random() * 100}%`,
+                animation: `float ${3 + Math.random() * 4}s ease-in-out infinite`,
+                animationDelay: `${Math.random() * 2}s`
+              }}
+            />
+          ))}
+        </div>
+      )}
 
-      {/* Enhanced Gradient Orbs */}
+      {/* Animated Gradient Orbs */}
       <div className="absolute inset-0 opacity-30">
         <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-500 rounded-full filter blur-3xl animate-pulse" style={{ animationDuration: '4s' }} />
         <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple-500 rounded-full filter blur-3xl animate-pulse" style={{ animationDuration: '5s', animationDelay: '1s' }} />
-        <div className="absolute top-3/4 left-1/3 w-64 h-64 bg-cyan-500 rounded-full filter blur-3xl animate-pulse" style={{ animationDuration: '6s', animationDelay: '0.5s' }} />
+        <div className="absolute top-1/2 left-1/2 w-96 h-96 bg-pink-500 rounded-full filter blur-3xl animate-pulse" style={{ animationDuration: '6s', animationDelay: '2s' }} />
       </div>
 
-      {/* Progress Bar with Animated Character */}
-      <div className="absolute bottom-32 left-10 right-10 bg-white/10 backdrop-blur-sm rounded-full h-4 overflow-hidden shadow-inner border border-white/20">
-        <div 
-          className={`relative h-full bg-gradient-to-r ${stageInfo.gradient} rounded-full transition-all duration-500`} 
-          style={{ width: `${uploadProgress}%` }}
-        >
-          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer" />
-          
-          {/* Animated Character */}
-          <div 
-            className="absolute top-1/2 right-0 transform -translate-y-1/2 translate-x-1/2 text-2xl animate-bounce"
-            style={{ right: `${100 - characterPosition}%` }}
-          >
-            {stageInfo.character}
-          </div>
-        </div>
-      </div>
-
+      {/* Main Content */}
       <div className="relative z-10 max-w-2xl w-full mx-auto px-8">
+        {/* Central Animation Circle */}
         <div className="flex flex-col items-center mb-12">
-          {/* Enhanced Loading Spinner */}
           <div className="relative w-64 h-64 mb-8">
+            {/* Outer rotating rings */}
             <div className="absolute inset-0 rounded-full border-4 border-blue-400/30 animate-spin" style={{ animationDuration: '3s' }} />
             <div className="absolute inset-2 rounded-full border-4 border-purple-400/30 animate-spin" style={{ animationDuration: '2s', animationDirection: 'reverse' }} />
-            <div className="absolute inset-4 rounded-full border-4 border-cyan-400/30 animate-spin" style={{ animationDuration: '4s' }} />
+            <div className="absolute inset-4 rounded-full border-4 border-pink-400/30 animate-spin" style={{ animationDuration: '4s' }} />
             
+            {/* Center circle with icon */}
             <div className={`absolute inset-8 rounded-full bg-gradient-to-br ${stageInfo.gradient} animate-pulse flex items-center justify-center shadow-2xl`}>
               <span className="text-7xl animate-bounce">{stageInfo.icon}</span>
             </div>
+
+            {/* Orbiting particles */}
+            <div className="absolute inset-0 animate-spin" style={{ animationDuration: '4s' }}>
+              <div className="absolute top-0 left-1/2 w-4 h-4 bg-blue-400 rounded-full -ml-2 shadow-lg" />
+            </div>
+            <div className="absolute inset-0 animate-spin" style={{ animationDuration: '4s', animationDelay: '1s' }}>
+              <div className="absolute top-0 left-1/2 w-4 h-4 bg-purple-400 rounded-full -ml-2 shadow-lg" />
+            </div>
+            <div className="absolute inset-0 animate-spin" style={{ animationDuration: '4s', animationDelay: '2s' }}>
+              <div className="absolute top-0 left-1/2 w-4 h-4 bg-pink-400 rounded-full -ml-2 shadow-lg" />
+            </div>
           </div>
 
-          {/* Enhanced Text Content */}
+          {/* Status Text */}
           <div className="text-center space-y-3 mb-8">
             <h2 className={`text-4xl font-bold bg-gradient-to-r ${stageInfo.gradient} bg-clip-text text-transparent animate-pulse`}>
-              <Typewriter text={stageInfo.title} speed={60} />
+              {stageInfo.title}
             </h2>
-            <p className="text-xl text-blue-200 animate-fadeIn">{stageInfo.subtitle}</p>
-            <p className="text-sm text-blue-300/70 max-w-md truncate animate-fadeIn delay-200">
+            <p className="text-xl text-blue-200">{stageInfo.subtitle}</p>
+            <p className="text-sm text-blue-300/70 max-w-md truncate">
               📄 {fileName}
             </p>
           </div>
         </div>
 
+        {/* Progress Bar */}
         <div className="space-y-4">
           <div className="flex justify-between text-sm font-medium text-blue-200">
             <span>Analysis Progress</span>
-            <span className="text-white font-bold animate-pulse">{uploadProgress}%</span>
+            <span className="text-white font-bold">{uploadProgress}%</span>
           </div>
+          
+          <div className="relative w-full bg-white/10 backdrop-blur-sm rounded-full h-4 overflow-hidden shadow-inner border border-white/20">
+            {/* Background shimmer effect */}
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-shimmer" />
+            
+            {/* Progress fill */}
+            <div 
+              className={`relative h-full bg-gradient-to-r ${stageInfo.gradient} rounded-full transition-all duration-500 ease-out shadow-lg`}
+              style={{ width: `${uploadProgress}%` }}
+            >
+              {/* Inner glow */}
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer" />
+            </div>
+            
+            {/* Progress indicator dot */}
+            <div 
+              className="absolute top-1/2 -translate-y-1/2 w-6 h-6 bg-white rounded-full shadow-lg transition-all duration-500 border-2 border-blue-400"
+              style={{ left: `calc(${uploadProgress}% - 12px)` }}
+            >
+              <div className="absolute inset-0 bg-white rounded-full animate-ping opacity-75" />
+            </div>
+          </div>
+        </div>
+
+        {/* Stage Indicators */}
+        <div className="mt-12 grid grid-cols-4 gap-4">
+          {['upload', 'extracting', 'analyzing', 'finalizing'].map((stage, index) => {
+            const stageProgress = (index + 1) * 25;
+            const isActive = uploadProgress >= (index * 25);
+            const isCurrent = analysisStage === stage;
+            
+            return (
+              <div 
+                key={stage}
+                className={`relative flex flex-col items-center transition-all duration-500 ${
+                  isActive ? 'scale-110' : 'scale-100 opacity-50'
+                }`}
+              >
+                <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-2 transition-all duration-500 ${
+                  isCurrent 
+                    ? `bg-gradient-to-br ${stageInfo.gradient} shadow-lg shadow-blue-500/50 animate-pulse` 
+                    : isActive 
+                    ? 'bg-green-500' 
+                    : 'bg-white/20'
+                }`}>
+                  {isActive ? (
+                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                    </svg>
+                  ) : (
+                    <div className="w-3 h-3 bg-white/50 rounded-full" />
+                  )}
+                </div>
+                <span className={`text-xs font-medium text-center capitalize ${
+                  isActive ? 'text-white' : 'text-blue-300/50'
+                }`}>
+                  {stage}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Fun Facts */}
+        <div className="mt-12 p-6 bg-white/5 backdrop-blur-md rounded-2xl border border-white/10">
+          <p className="text-center text-blue-100 text-sm leading-relaxed">
+            💡 <span className="font-semibold">Did you know?</span> Our AI analyzes over{' '}
+            <span className="text-white font-bold">10,000 research papers</span> monthly,{' '}
+            helping researchers save countless hours!
+          </p>
         </div>
       </div>
 
+      {/* CSS for shimmer animation */}
       <style>{`
-        @keyframes float { 
-          0%, 100% { transform: translateY(0px) rotate(0deg); } 
-          50% { transform: translateY(-20px) rotate(5deg); } 
+        @keyframes float {
+          0%, 100% { transform: translateY(0px); }
+          50% { transform: translateY(-20px); }
         }
-        @keyframes shimmer { 
-          0% { transform: translateX(-100%); } 
-          100% { transform: translateX(100%); } 
+        @keyframes shimmer {
+          0% { transform: translateX(-100%); }
+          100% { transform: translateX(100%); }
         }
-        @keyframes fadeIn { 
-          from { opacity: 0; transform: translateY(10px); } 
-          to { opacity: 1; transform: translateY(0); } 
+        .animate-shimmer {
+          animation: shimmer 2s infinite;
         }
-        @keyframes particleBurst { 
-          0% { transform: rotate(var(--rotation)) translateY(0) scale(1); opacity: 1; } 
-          100% { transform: rotate(var(--rotation)) translateY(-60px) scale(0); opacity: 0; } 
-        }
-        .animate-float { animation: float 3s ease-in-out infinite; }
-        .animate-shimmer { animation: shimmer 2s infinite; }
-        .animate-fadeIn { animation: fadeIn 0.6s ease-out both; }
-        .delay-200 { animation-delay: 0.2s; }
       `}</style>
     </div>
   );
 };
 
-// Enhanced Login Page with Character Animation
+// API Service
+const API_BASE_URL = 'http://localhost:8000';
+
+const api = {
+  analyzePDF: async (file, question = null) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    if (question) formData.append('question', question);
+    
+    const response = await fetch(`${API_BASE_URL}/analyze-pdf`, {
+      method: 'POST',
+      body: formData,
+    });
+    
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || 'Upload failed');
+    }
+    
+    return await response.json();
+  },
+
+  analyzeImage: async (file, question = null) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    if (question) formData.append('question', question);
+    
+    const response = await fetch(`${API_BASE_URL}/analyze-image`, {
+      method: 'POST',
+      body: formData,
+    });
+    
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || 'Upload failed');
+    }
+    
+    return await response.json();
+  },
+
+  askQuestion: async (question) => {
+    const formData = new FormData();
+    formData.append('question', question);
+    
+    const response = await fetch(`${API_BASE_URL}/ask-question`, {
+      method: 'POST',
+      body: formData,
+    });
+    
+    if (!response.ok) throw new Error('Question failed');
+    return await response.json();
+  },
+
+  listDocuments: async () => {
+    const response = await fetch(`${API_BASE_URL}/documents`);
+    if (!response.ok) throw new Error('Failed to fetch documents');
+    return await response.json();
+  }
+};
+
+// Login Page Component
 const LoginPage = ({ onLogin, onNavigate }) => {
   const [isLogin, setIsLogin] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
-  const [formData, setFormData] = useState({ email: '', password: '', name: '' });
-  const [particles, setParticles] = useState([]);
-  const [characterPosition, setCharacterPosition] = useState({ x: 50, y: 50 });
-
-  useEffect(() => {
-    // Enhanced particles with more variety
-    const newParticles = [...Array(50)].map((_, i) => ({
-      id: i,
-      x: Math.random() * 100,
-      y: Math.random() * 100,
-      size: Math.random() * 4 + 1,
-      duration: Math.random() * 5 + 3,
-      delay: Math.random() * 2,
-      type: Math.random() > 0.5 ? 'circle' : 'square'
-    }));
-    setParticles(newParticles);
-
-    // Animate character position
-    const moveCharacter = () => {
-      setCharacterPosition({
-        x: 20 + Math.random() * 60,
-        y: 30 + Math.random() * 40
-      });
-    };
-
-    const interval = setInterval(moveCharacter, 3000);
-    return () => clearInterval(interval);
-  }, []);
+  const [formData, setFormData] = useState({
+    email: '',
+    password: '',
+    name: ''
+  });
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -322,98 +323,53 @@ const LoginPage = ({ onLogin, onNavigate }) => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-950 via-purple-900 to-pink-900 flex items-center justify-center p-4 overflow-hidden relative">
-      {/* Enhanced Animated particles */}
-      {particles.map(particle => (
-        <div
-          key={particle.id}
-          className={`absolute ${particle.type === 'circle' ? 'rounded-full' : 'rounded-sm'} bg-white/20 animate-float`}
-          style={{
-            left: `${particle.x}%`,
-            top: `${particle.y}%`,
-            width: `${particle.size}px`,
-            height: `${particle.size}px`,
-            animation: `float ${particle.duration}s ease-in-out infinite`,
-            animationDelay: `${particle.delay}s`
-          }}
-        />
-      ))}
-
-      {/* Enhanced Gradient orbs */}
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-20 left-20 w-96 h-96 bg-blue-500 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-pulse animate-float"></div>
-        <div className="absolute top-40 right-20 w-96 h-96 bg-purple-500 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-pulse animate-float" style={{animationDelay: '1s'}}></div>
-        <div className="absolute bottom-20 left-1/2 w-96 h-96 bg-pink-500 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-pulse animate-float" style={{animationDelay: '0.5s'}}></div>
+        <div className="absolute top-20 left-20 w-72 h-72 bg-blue-200 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-pulse"></div>
+        <div className="absolute top-40 right-20 w-72 h-72 bg-purple-200 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-pulse" style={{animationDelay: '1s'}}></div>
+        <div className="absolute bottom-20 left-1/2 w-72 h-72 bg-indigo-200 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-pulse" style={{animationDelay: '0.5s'}}></div>
       </div>
 
-      {/* Animated Character */}
-      <div 
-        className="absolute text-6xl z-20 transition-all duration-2000 ease-in-out"
-        style={{
-          left: `${characterPosition.x}%`,
-          top: `${characterPosition.y}%`,
-          transform: 'translate(-50%, -50%)'
-        }}
-      >
-        <div className="animate-bounce hover:animate-spin cursor-pointer">
-          {isLogin ? '👨‍💻' : '🚀'}
-        </div>
-      </div>
-
-      <div className="relative w-full max-w-md z-10">
-        {/* Enhanced Logo Animation */}
-        <div className="text-center mb-8 animate-fadeIn">
-          <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 rounded-3xl shadow-2xl mb-4 transform hover:scale-110 transition-transform duration-300 relative group animate-pulse">
-            <BookOpen className="w-10 h-10 text-white" />
-            <div className="absolute inset-0 bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 rounded-3xl blur-xl opacity-50 group-hover:opacity-100 transition-opacity animate-ping"></div>
+      <div className="relative w-full max-w-md">
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-2xl shadow-lg mb-4">
+            <BookOpen className="w-8 h-8 text-white" />
           </div>
-          <h1 className="text-4xl font-bold text-white mb-2 bg-gradient-to-r from-blue-200 via-purple-200 to-pink-200 bg-clip-text text-transparent animate-pulse">
-            AI Research Analyzer
-          </h1>
-          <p className="text-blue-200 flex items-center justify-center gap-2 animate-bounce">
-            <Sparkles className="w-4 h-4 animate-spin" />
-            Unlock insights from research papers
-            <Sparkles className="w-4 h-4 animate-spin" />
-          </p>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">AI Research Analyzer</h1>
+          <p className="text-gray-600">Unlock insights from research papers</p>
         </div>
 
-        <div className="bg-white/10 backdrop-blur-xl rounded-3xl shadow-2xl p-8 border border-white/20 animate-slideUp">
-          {/* Enhanced Tab Switcher */}
-          <div className="flex gap-2 mb-6 bg-white/10 p-1 rounded-xl backdrop-blur-sm">
+        <div className="bg-white rounded-2xl shadow-2xl p-8">
+          <div className="flex gap-2 mb-6 bg-gray-100 p-1 rounded-lg">
             <button
               onClick={() => setIsLogin(true)}
-              className={`flex-1 py-3 rounded-lg font-medium transition-all duration-300 ${
-                isLogin 
-                  ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg transform scale-105 animate-pulse' 
-                  : 'text-white/70 hover:text-white hover:bg-white/5'
+              className={`flex-1 py-2 rounded-md font-medium transition-all ${
+                isLogin ? 'bg-white text-blue-600 shadow' : 'text-gray-600'
               }`}
             >
               Login
             </button>
             <button
               onClick={() => setIsLogin(false)}
-              className={`flex-1 py-3 rounded-lg font-medium transition-all duration-300 ${
-                !isLogin 
-                  ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg transform scale-105 animate-pulse' 
-                  : 'text-white/70 hover:text-white hover:bg-white/5'
+              className={`flex-1 py-2 rounded-md font-medium transition-all ${
+                !isLogin ? 'bg-white text-blue-600 shadow' : 'text-gray-600'
               }`}
             >
               Sign Up
             </button>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-5">
+          <form onSubmit={handleSubmit} className="space-y-4">
             {!isLogin && (
-              <div className="animate-slideDown">
-                <label className="block text-sm font-medium text-white/90 mb-2 flex items-center gap-2">
-                  <User className="w-4 h-4 animate-bounce" />
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
                   Full Name
                 </label>
                 <input
                   type="text"
                   value={formData.name}
                   onChange={(e) => setFormData({...formData, name: e.target.value})}
-                  className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 text-white placeholder-white/50 backdrop-blur-sm transition-all hover:bg-white/15 focus:bg-white/20"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="John Doe"
                   required={!isLogin}
                 />
@@ -421,23 +377,21 @@ const LoginPage = ({ onLogin, onNavigate }) => {
             )}
 
             <div>
-              <label className="block text-sm font-medium text-white/90 mb-2 flex items-center gap-2">
-                <Zap className="w-4 h-4 animate-pulse" />
+              <label className="block text-sm font-medium text-gray-700 mb-2">
                 Email Address
               </label>
               <input
                 type="email"
                 value={formData.email}
                 onChange={(e) => setFormData({...formData, email: e.target.value})}
-                className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 text-white placeholder-white/50 backdrop-blur-sm transition-all hover:bg-white/15 focus:bg-white/20"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="you@example.com"
                 required
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-white/90 mb-2 flex items-center gap-2">
-                <Brain className="w-4 h-4 animate-bounce" />
+              <label className="block text-sm font-medium text-gray-700 mb-2">
                 Password
               </label>
               <div className="relative">
@@ -445,14 +399,14 @@ const LoginPage = ({ onLogin, onNavigate }) => {
                   type={showPassword ? 'text' : 'password'}
                   value={formData.password}
                   onChange={(e) => setFormData({...formData, password: e.target.value})}
-                  className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 text-white placeholder-white/50 backdrop-blur-sm transition-all hover:bg-white/15 focus:bg-white/20"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="••••••••"
                   required
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-white/60 hover:text-white transition-colors animate-pulse"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
                 >
                   {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
@@ -461,107 +415,70 @@ const LoginPage = ({ onLogin, onNavigate }) => {
 
             <button
               type="submit"
-              className="w-full bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 text-white py-4 rounded-xl font-semibold hover:shadow-2xl transition-all duration-300 transform hover:scale-105 flex items-center justify-center gap-2 group relative overflow-hidden"
+              className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-3 rounded-lg font-semibold hover:shadow-lg transition-all duration-300 transform hover:scale-105"
             >
-              <div className="absolute inset-0 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 opacity-0 group-hover:opacity-100 transition-opacity animate-shimmer"></div>
-              <span className="relative flex items-center gap-2">
-                {isLogin ? 'Login' : 'Create Account'}
-                <Rocket className="w-5 h-5 group-hover:translate-x-1 transition-transform group-hover:animate-bounce" />
-              </span>
+              {isLogin ? 'Login' : 'Create Account'}
             </button>
           </form>
 
           <div className="relative my-6">
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-white/20"></div>
+              <div className="w-full border-t border-gray-300"></div>
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="px-3 bg-transparent text-white/60 animate-pulse">Or continue as guest</span>
+              <span className="px-2 bg-white text-gray-500">Or continue as guest</span>
             </div>
           </div>
 
           <button
             onClick={() => onNavigate('home')}
-            className="w-full border-2 border-white/30 text-white py-3 rounded-xl font-semibold hover:bg-white/10 transition-all backdrop-blur-sm flex items-center justify-center gap-2 group animate-bounce hover:animate-none"
+            className="w-full border-2 border-gray-300 text-gray-700 py-3 rounded-lg font-semibold hover:bg-gray-50 transition-all"
           >
             Continue as Guest
-            <Sparkles className="w-4 h-4 group-hover:rotate-12 transition-transform group-hover:animate-spin" />
           </button>
         </div>
       </div>
-
-      <style>{`
-        @keyframes fadeIn { 
-          from { opacity: 0; transform: translateY(-20px); } 
-          to { opacity: 1; transform: translateY(0); } 
-        }
-        @keyframes slideUp { 
-          from { opacity: 0; transform: translateY(30px); } 
-          to { opacity: 1; transform: translateY(0); } 
-        }
-        @keyframes slideDown { 
-          from { opacity: 0; transform: translateY(-10px); } 
-          to { opacity: 1; transform: translateY(0); } 
-        }
-        .animate-fadeIn { animation: fadeIn 0.6s ease-out; }
-        .animate-slideUp { animation: slideUp 0.6s ease-out; }
-        .animate-slideDown { animation: slideDown 0.3s ease-out; }
-      `}</style>
     </div>
   );
 };
 
-// Enhanced HomePage with animated features
+// Home Page Component
 const HomePage = ({ onNavigate, userName }) => {
   const [hoveredFeature, setHoveredFeature] = useState(null);
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   const features = [
-    { 
-      icon: '🔍', 
-      title: 'Plagiarism Detection', 
-      description: 'Advanced AI-powered plagiarism checking with detailed reports', 
-      color: 'from-green-400 to-green-600',
-      animation: 'hover:scale-110 hover:rotate-3'
+    {
+      icon: '🔍',
+      title: 'Plagiarism Detection',
+      description: 'Advanced AI-powered plagiarism checking with detailed reports',
+      color: 'from-green-400 to-green-600'
     },
-    { 
-      icon: '📄', 
-      title: 'Smart Summarization', 
-      description: 'Get concise, accurate summaries of complex research papers', 
-      color: 'from-blue-400 to-blue-600',
-      animation: 'hover:scale-110 hover:-rotate-3'
+    {
+      icon: '📄',
+      title: 'Smart Summarization',
+      description: 'Get concise, accurate summaries of complex research papers',
+      color: 'from-blue-400 to-blue-600'
     },
-    { 
-      icon: '🏷️', 
-      title: 'Keyword Extraction', 
-      description: 'Automatically identify key concepts and terminology', 
-      color: 'from-purple-400 to-purple-600',
-      animation: 'hover:scale-110 hover:rotate-6'
+    {
+      icon: '🏷️',
+      title: 'Keyword Extraction',
+      description: 'Automatically identify key concepts and terminology',
+      color: 'from-purple-400 to-purple-600'
     },
-    { 
-      icon: '📊', 
-      title: 'Citation Analysis', 
-      description: 'Comprehensive analysis of references and citations', 
-      color: 'from-orange-400 to-orange-600',
-      animation: 'hover:scale-110 hover:-rotate-6'
+    {
+      icon: '📊',
+      title: 'Citation Analysis',
+      description: 'Comprehensive analysis of references and citations',
+      color: 'from-orange-400 to-orange-600'
     }
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 overflow-hidden">
-      <AnimatedMascot />
-      
-      {/* Enhanced Header with animation */}
-      <header className={`bg-white/90 backdrop-blur-md border-b border-gray-200 sticky top-0 z-40 transition-all duration-500 ${
-        mounted ? 'translate-y-0 opacity-100' : '-translate-y-4 opacity-0'
-      }`}>
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50">
+      <header className="bg-white/90 backdrop-blur-md border-b border-gray-200 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-8 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-3 animate-pulse">
-            <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center shadow-lg hover:scale-110 transition-transform duration-300">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center">
               <BookOpen className="w-6 h-6 text-white" />
             </div>
             <span className="text-xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
@@ -569,25 +486,25 @@ const HomePage = ({ onNavigate, userName }) => {
             </span>
           </div>
           <nav className="flex gap-6 items-center">
-            <button className="text-gray-700 hover:text-blue-600 font-medium transition-colors hover:scale-110">Features</button>
-            <button className="text-gray-700 hover:text-blue-600 font-medium transition-colors hover:scale-110">Pricing</button>
-            <button className="text-gray-700 hover:text-blue-600 font-medium transition-colors hover:scale-110">About</button>
+            <button className="text-gray-700 hover:text-blue-600 font-medium transition-colors">Features</button>
+            <button className="text-gray-700 hover:text-blue-600 font-medium transition-colors">Pricing</button>
+            <button className="text-gray-700 hover:text-blue-600 font-medium transition-colors">About</button>
             {userName ? (
               <div className="flex items-center gap-3">
-                <button 
-                  onClick={() => onNavigate('dashboard')} 
-                  className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-6 py-2 rounded-lg hover:shadow-lg transition-all transform hover:scale-105 animate-pulse"
+                <button
+                  onClick={() => onNavigate('dashboard')}
+                  className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-6 py-2 rounded-lg hover:shadow-lg transition-all"
                 >
                   Dashboard
                 </button>
-                <div className="w-10 h-10 bg-orange-300 rounded-full flex items-center justify-center font-semibold text-gray-700 hover:scale-110 transition-transform">
+                <div className="w-10 h-10 bg-orange-300 rounded-full flex items-center justify-center font-semibold text-gray-700">
                   {userName.charAt(0).toUpperCase()}
                 </div>
               </div>
             ) : (
-              <button 
-                onClick={() => onNavigate('login')} 
-                className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-6 py-2 rounded-lg hover:shadow-lg transition-all transform hover:scale-105 animate-bounce"
+              <button
+                onClick={() => onNavigate('login')}
+                className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-6 py-2 rounded-lg hover:shadow-lg transition-all"
               >
                 Login
               </button>
@@ -596,70 +513,63 @@ const HomePage = ({ onNavigate, userName }) => {
         </div>
       </header>
 
-      {/* Enhanced Hero Section */}
       <section className="max-w-7xl mx-auto px-8 py-20 text-center">
-        <div className="mb-6 inline-block animate-bounce">
-          <span className="bg-blue-100 text-blue-700 px-4 py-2 rounded-full text-sm font-semibold animate-pulse">
+        <div className="mb-6 inline-block">
+          <span className="bg-blue-100 text-blue-700 px-4 py-2 rounded-full text-sm font-semibold">
             ✨ AI-Powered Research Analysis
           </span>
         </div>
-        <h1 className="text-6xl font-bold text-gray-900 mb-6 leading-tight animate-fadeIn">
-          <Typewriter 
-            className='bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent' 
-            text="Unlock Deeper Insights From Your Research Papers" 
-            speed={50}
-          />
+        <h1 className="text-6xl font-bold text-gray-900 mb-6 leading-tight">
+          <Typewriter className='bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent' text="Unlock Deeper Insights From Your Research Papers" />
         </h1>
-        <p className="text-xl text-gray-600 mb-10 max-w-2xl mx-auto animate-fadeIn delay-200">
+        <p className="text-xl text-gray-600 mb-10 max-w-2xl mx-auto">
           Analyze research papers with cutting-edge AI technology. Get summaries, detect plagiarism, and extract key insights instantly.
         </p>
-        <div className="flex gap-4 justify-center animate-fadeIn delay-400">
-          <button 
-            onClick={() => onNavigate(userName ? 'upload' : 'login')} 
-            className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-8 py-4 rounded-lg text-lg font-semibold hover:shadow-2xl transition-all duration-300 transform hover:scale-105 animate-pulse"
+        <div className="flex gap-4 justify-center">
+          <button
+            onClick={() => onNavigate(userName ? 'upload' : 'login')}
+            className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-8 py-4 rounded-lg text-lg font-semibold hover:shadow-2xl transition-all duration-300 transform hover:scale-105"
           >
             {userName ? 'Analyze Paper →' : 'Get Started →'}
           </button>
           {userName && (
-            <button 
-              onClick={() => onNavigate('dashboard')} 
-              className="bg-white text-gray-700 px-8 py-4 rounded-lg text-lg font-semibold border-2 border-gray-300 hover:border-blue-600 hover:text-blue-600 transition-all transform hover:scale-105"
+            <button
+              onClick={() => onNavigate('dashboard')}
+              className="bg-white text-gray-700 px-8 py-4 rounded-lg text-lg font-semibold border-2 border-gray-300 hover:border-blue-600 hover:text-blue-600 transition-all"
             >
               View Dashboard
             </button>
           )}
         </div>
 
-        {/* Enhanced Stats Section */}
-        <div className="mt-16 bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900 rounded-2xl p-12 shadow-2xl relative overflow-hidden animate-fadeIn delay-600">
+        <div className="mt-16 bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900 rounded-2xl p-12 shadow-2xl relative overflow-hidden">
           <div className="absolute inset-0 opacity-20">
-            <div className="absolute top-10 left-10 w-40 h-40 bg-blue-500 rounded-full filter blur-3xl animate-pulse animate-float"></div>
-            <div className="absolute bottom-10 right-10 w-60 h-60 bg-purple-500 rounded-full filter blur-3xl animate-pulse animate-float" style={{animationDelay: '1s'}}></div>
+            <div className="absolute top-10 left-10 w-40 h-40 bg-blue-500 rounded-full filter blur-3xl animate-pulse"></div>
+            <div className="absolute bottom-10 right-10 w-60 h-60 bg-purple-500 rounded-full filter blur-3xl animate-pulse"></div>
           </div>
 
           <div className="relative z-10 grid grid-cols-3 gap-6">
-            {[
-              { icon: '📈', value: '98%', label: 'Accuracy Rate' },
-              { icon: '⚡', value: '<30s', label: 'Analysis Time' },
-              { icon: '🎯', value: '10K+', label: 'Papers Analyzed' }
-            ].map((stat, index) => (
-              <div 
-                key={index}
-                className="bg-white/10 backdrop-blur-md rounded-xl p-6 border border-white/20 hover:bg-white/20 transition-all duration-300 transform hover:scale-105 animate-fadeIn"
-                style={{animationDelay: `${800 + index * 200}ms`}}
-              >
-                <div className="text-4xl mb-3 animate-bounce">{stat.icon}</div>
-                <div className="text-3xl font-bold text-white mb-2 animate-pulse">{stat.value}</div>
-                <div className="text-blue-200 text-sm">{stat.label}</div>
-              </div>
-            ))}
+            <div className="bg-white/10 backdrop-blur-md rounded-xl p-6 border border-white/20 hover:bg-white/20 transition-all">
+              <div className="text-4xl mb-3">📈</div>
+              <div className="text-3xl font-bold text-white mb-2">98%</div>
+              <div className="text-blue-200 text-sm">Accuracy Rate</div>
+            </div>
+            <div className="bg-white/10 backdrop-blur-md rounded-xl p-6 border border-white/20 hover:bg-white/20 transition-all">
+              <div className="text-4xl mb-3">⚡</div>
+              <div className="text-3xl font-bold text-white mb-2">&lt;30s</div>
+              <div className="text-blue-200 text-sm">Analysis Time</div>
+            </div>
+            <div className="bg-white/10 backdrop-blur-md rounded-xl p-6 border border-white/20 hover:bg-white/20 transition-all">
+              <div className="text-4xl mb-3">🎯</div>
+              <div className="text-3xl font-bold text-white mb-2">10K+</div>
+              <div className="text-blue-200 text-sm">Papers Analyzed</div>
+            </div>
           </div>
         </div>
       </section>
 
-      {/* Enhanced Features Section */}
       <section className="max-w-7xl mx-auto px-8 py-20">
-        <div className="text-center mb-16 animate-fadeIn">
+        <div className="text-center mb-16">
           <h2 className="text-4xl font-bold text-gray-900 mb-4">Powerful Features</h2>
           <p className="text-xl text-gray-600">Everything you need for comprehensive research analysis</p>
         </div>
@@ -668,16 +578,13 @@ const HomePage = ({ onNavigate, userName }) => {
           {features.map((feature, index) => (
             <div
               key={index}
-              className={`bg-white p-8 rounded-2xl shadow-lg border-2 transition-all duration-500 transform ${
-                hoveredFeature === index 
-                  ? 'border-blue-500 shadow-2xl scale-105 rotate-3' 
-                  : 'border-transparent hover:scale-105'
-              } ${feature.animation} cursor-pointer animate-fadeIn`}
-              style={{animationDelay: `${600 + index * 100}ms`}}
+              className={`bg-white p-8 rounded-2xl shadow-lg border-2 ${
+                hoveredFeature === index ? 'border-blue-500 shadow-2xl' : 'border-transparent'
+              } text-center hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2 cursor-pointer`}
               onMouseEnter={() => setHoveredFeature(index)}
               onMouseLeave={() => setHoveredFeature(null)}
             >
-              <div className={`w-16 h-16 bg-gradient-to-br ${feature.color} rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg text-3xl animate-bounce`}>
+              <div className={`w-16 h-16 bg-gradient-to-br ${feature.color} rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg text-3xl`}>
                 {feature.icon}
               </div>
               <h3 className="text-xl font-bold text-gray-900 mb-3">{feature.title}</h3>
@@ -690,35 +597,7 @@ const HomePage = ({ onNavigate, userName }) => {
   );
 };
 
-// API Service
-const API_BASE_URL = 'http://localhost:8000';
-const api = {
-  analyzePDF: async (file, question = null) => {
-    const formData = new FormData();
-    formData.append('file', file);
-    if (question) formData.append('question', question);
-    const response = await fetch(`${API_BASE_URL}/analyze-pdf`, { method: 'POST', body: formData });
-    if (!response.ok) throw new Error((await response.json()).detail || 'Upload failed');
-    return await response.json();
-  },
-  analyzeImage: async (file, question = null) => {
-    const formData = new FormData();
-    formData.append('file', file);
-    if (question) formData.append('question', question);
-    const response = await fetch(`${API_BASE_URL}/analyze-image`, { method: 'POST', body: formData });
-    if (!response.ok) throw new Error((await response.json()).detail || 'Upload failed');
-    return await response.json();
-  },
-  askQuestion: async (question) => {
-    const formData = new FormData();
-    formData.append('question', question);
-    const response = await fetch(`${API_BASE_URL}/ask-question`, { method: 'POST', body: formData });
-    if (!response.ok) throw new Error('Question failed');
-    return await response.json();
-  }
-};
-
-// UploadPage Component (unchanged functionality, enhanced animations)
+// Upload Page Component
 const UploadPage = ({ onNavigate, onUploadComplete, userName }) => {
   const [file, setFile] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -754,11 +633,13 @@ const UploadPage = ({ onNavigate, onUploadComplete, userName }) => {
 
   const handleStartAnalysis = async () => {
     if (!file) return;
+
     setIsUploading(true);
     setUploadProgress(0);
     setError(null);
 
     try {
+      // Simulate smooth progress
       const progressInterval = setInterval(() => {
         setUploadProgress(prev => {
           if (prev >= 90) {
@@ -770,6 +651,7 @@ const UploadPage = ({ onNavigate, onUploadComplete, userName }) => {
       }, 100);
 
       let result;
+      
       if (file.type === 'application/pdf') {
         result = await api.analyzePDF(file, question || null);
       } else if (file.type.startsWith('image/')) {
@@ -798,6 +680,7 @@ const UploadPage = ({ onNavigate, onUploadComplete, userName }) => {
       existingPapers.push(paper);
       localStorage.setItem('papers', JSON.stringify(existingPapers));
 
+      // Wait for animation to complete
       setTimeout(() => {
         onUploadComplete(paper);
       }, 1500);
@@ -826,8 +709,12 @@ const UploadPage = ({ onNavigate, onUploadComplete, userName }) => {
             </span>
           </div>
           <div className="flex items-center gap-4">
-            <button onClick={() => onNavigate('home')} className="text-gray-700 hover:text-blue-600">Home</button>
-            <button onClick={() => onNavigate('dashboard')} className="text-gray-700 hover:text-blue-600">Dashboard</button>
+            <button onClick={() => onNavigate('home')} className="text-gray-700 hover:text-blue-600">
+              Home
+            </button>
+            <button onClick={() => onNavigate('dashboard')} className="text-gray-700 hover:text-blue-600">
+              Dashboard
+            </button>
             {userName && (
               <div className="w-10 h-10 bg-orange-300 rounded-full flex items-center justify-center font-semibold">
                 {userName.charAt(0).toUpperCase()}
@@ -914,7 +801,7 @@ const UploadPage = ({ onNavigate, onUploadComplete, userName }) => {
   );
 };
 
-// DashboardPage Component (unchanged functionality)
+// Dashboard Component
 const DashboardPage = ({ onNavigate, onViewAnalysis, userName }) => {
   const [papers, setPapers] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -1097,7 +984,7 @@ const DashboardPage = ({ onNavigate, onViewAnalysis, userName }) => {
   );
 };
 
-// AnalysisPage Component (unchanged functionality)
+// Analysis Page Component
 const AnalysisPage = ({ onNavigate, paper, userName }) => {
   const [expandedSections, setExpandedSections] = useState({});
   const [question, setQuestion] = useState('');
@@ -1114,6 +1001,7 @@ const AnalysisPage = ({ onNavigate, paper, userName }) => {
 
   const handleAskQuestion = async () => {
     if (!question.trim()) return;
+
     setIsAsking(true);
     try {
       const response = await api.askQuestion(question);
@@ -1181,8 +1069,18 @@ const AnalysisPage = ({ onNavigate, paper, userName }) => {
               <span className="font-semibold text-lg">AI Research Analyzer</span>
             </div>
             <div className="flex items-center gap-4">
-              <button onClick={() => onNavigate('home')} className="text-gray-700 hover:text-gray-900">Home</button>
-              <button onClick={() => onNavigate('dashboard')} className="text-gray-700 hover:text-gray-900">My Analyses</button>
+              <button 
+                onClick={() => onNavigate('home')}
+                className="text-gray-700 hover:text-gray-900"
+              >
+                Home
+              </button>
+              <button 
+                onClick={() => onNavigate('dashboard')}
+                className="text-gray-700 hover:text-gray-900"
+              >
+                My Analyses
+              </button>
               <div className="w-10 h-10 bg-orange-300 rounded-full flex items-center justify-center font-semibold">
                 {(userName || 'G').charAt(0).toUpperCase()}
               </div>
@@ -1227,6 +1125,7 @@ const AnalysisPage = ({ onNavigate, paper, userName }) => {
 
         <div className="grid grid-cols-3 gap-8">
           <div className="col-span-2 space-y-6">
+            {/* Summary */}
             <div className="bg-gradient-to-br from-white to-blue-50 rounded-2xl shadow-lg p-8 border border-blue-100">
               <div className="flex items-center gap-3 mb-6">
                 <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-md">
@@ -1239,7 +1138,9 @@ const AnalysisPage = ({ onNavigate, paper, userName }) => {
               </div>
 
               <div className="prose prose-lg max-w-none">
-                <p className="text-gray-800 leading-relaxed text-lg mb-6 font-light">{summary}</p>
+                <p className="text-gray-800 leading-relaxed text-lg mb-6 font-light">
+                  {summary}
+                </p>
               </div>
 
               <div className="flex items-center gap-4 mt-6 pt-6 border-t border-blue-200">
@@ -1248,11 +1149,25 @@ const AnalysisPage = ({ onNavigate, paper, userName }) => {
                   className="flex items-center gap-2 text-blue-600 hover:text-blue-700 font-medium transition-colors"
                 >
                   {expandedSections.fullText ? (
-                    <><ChevronUp className="w-5 h-5" />Hide Full Text</>
+                    <>
+                      <ChevronUp className="w-5 h-5" />
+                      Hide Full Text
+                    </>
                   ) : (
-                    <><ChevronDown className="w-5 h-5" />Show Full Text</>
+                    <>
+                      <ChevronDown className="w-5 h-5" />
+                      Show Full Text
+                    </>
                   )}
                 </button>
+                <div className="flex-1 flex items-center gap-4 text-sm text-gray-600">
+                  <span className="flex items-center gap-1">
+                    📊 {extractedText ? Math.ceil(extractedText.length / 5) : 0} words
+                  </span>
+                  <span className="flex items-center gap-1">
+                    ⏱️ ~{extractedText ? Math.ceil(extractedText.length / 1000) : 0} min read
+                  </span>
+                </div>
               </div>
 
               {expandedSections.fullText && extractedText && (
@@ -1262,12 +1177,15 @@ const AnalysisPage = ({ onNavigate, paper, userName }) => {
                     Complete Document Text
                   </h3>
                   <div className="prose prose-sm max-w-none">
-                    <pre className="whitespace-pre-wrap text-gray-700 font-sans leading-relaxed">{extractedText}</pre>
+                    <pre className="whitespace-pre-wrap text-gray-700 font-sans leading-relaxed">
+                      {extractedText}
+                    </pre>
                   </div>
                 </div>
               )}
             </div>
 
+            {/* Keywords */}
             {keywords.length > 0 && (
               <div className="bg-gradient-to-br from-white to-purple-50 rounded-2xl shadow-lg p-8 border border-purple-100">
                 <div className="flex items-center gap-3 mb-6">
@@ -1281,14 +1199,23 @@ const AnalysisPage = ({ onNavigate, paper, userName }) => {
                 </div>
                 <div className="flex flex-wrap gap-3">
                   {keywords.map((keyword, index) => (
-                    <span key={index} className={`${keyword.color} px-5 py-2.5 rounded-full text-sm font-semibold shadow-sm hover:shadow-md transition-shadow cursor-default`}>
+                    <span 
+                      key={index}
+                      className={`${keyword.color} px-5 py-2.5 rounded-full text-sm font-semibold shadow-sm hover:shadow-md transition-shadow cursor-default`}
+                    >
                       {keyword.text}
                     </span>
                   ))}
                 </div>
+                <div className="mt-6 pt-6 border-t border-purple-200">
+                  <p className="text-sm text-gray-600">
+                    💡 These keywords represent the main topics and themes discussed in the paper
+                  </p>
+                </div>
               </div>
             )}
 
+            {/* Ask Questions */}
             <div className="bg-gradient-to-br from-white to-green-50 rounded-2xl shadow-lg p-8 border border-green-100">
               <div className="flex items-center gap-3 mb-6">
                 <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl flex items-center justify-center shadow-md">
@@ -1336,12 +1263,14 @@ const AnalysisPage = ({ onNavigate, paper, userName }) => {
                       <span className="text-white font-bold">Q</span>
                     </div>
                     <div className="flex-1">
-                      <p className="text-sm text-blue-900 font-semibold mb-3">{paper.answer.question}</p>
+                      <p className="text-sm text-blue-900 font-semibold mb-3">
+                        {paper.answer.question}
+                      </p>
                       <div className="flex items-start gap-3">
                         <div className="w-8 h-8 bg-green-500 rounded-lg flex items-center justify-center flex-shrink-0">
                           <span className="text-white font-bold">A</span>
                         </div>
-                        <p className="text-sm text-gray-800 leading-relaxed">{paper.answer.answer}</p>
+                        <p className="text-gray-700 leading-relaxed">{paper.answer.answer}</p>
                       </div>
                     </div>
                   </div>
@@ -1349,110 +1278,113 @@ const AnalysisPage = ({ onNavigate, paper, userName }) => {
               )}
 
               {answer && (
-                <div className="p-5 bg-gradient-to-br from-green-50 to-green-100 rounded-xl border border-green-200 shadow-sm">
+                <div className="p-5 bg-gradient-to-br from-green-50 to-emerald-100 rounded-xl border border-green-200 shadow-sm">
                   <div className="flex items-start gap-3">
-                    <div className="w-8 h-8 bg-green-500 rounded-lg flex items-center justify-center flex-shrink-0 mt-1">
-                      <span className="text-white font-bold">A</span>
+                    <div className="w-8 h-8 bg-green-600 rounded-lg flex items-center justify-center flex-shrink-0 mt-1">
+                      <span className="text-white font-bold">Q</span>
                     </div>
                     <div className="flex-1">
-                      <p className="text-sm text-green-900 font-semibold mb-3">{answer.question}</p>
-                      <p className="text-sm text-gray-800 leading-relaxed">{answer.answer}</p>
+                      <p className="text-sm text-green-900 font-semibold mb-3">
+                        {answer.question}
+                      </p>
+                      <div className="flex items-start gap-3">
+                        <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center flex-shrink-0">
+                          <span className="text-white font-bold">A</span>
+                        </div>
+                        <p className="text-gray-700 leading-relaxed">{answer.answer}</p>
+                      </div>
                     </div>
                   </div>
+                </div>
+              )}
+
+              {!paper?.answer && !answer && (
+                <div className="text-center py-8 text-gray-500">
+                  <Search className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                  <p className="text-sm">No questions asked yet. Start by asking something about the paper!</p>
                 </div>
               )}
             </div>
           </div>
 
-          <div className="space-y-6">
-            <div className="bg-gradient-to-br from-white to-red-50 rounded-2xl shadow-lg p-8 border border-red-100">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-12 h-12 bg-gradient-to-br from-red-500 to-pink-600 rounded-xl flex items-center justify-center shadow-md">
-                  <span className="text-2xl">🔍</span>
-                </div>
-                <div>
-                  <h2 className="text-3xl font-bold text-indigo-900">Plagiarism Check</h2>
-                  <p className="text-sm text-gray-600">Similarity Analysis</p>
+          <div className="col-span-1 space-y-6">
+            {/* Plagiarism Report */}
+            <div className="bg-white rounded-lg shadow p-6">
+              <h2 className="text-2xl font-bold text-indigo-900 mb-6">Plagiarism Report</h2>
+              
+              <div className="flex justify-center mb-6">
+                <div className="relative w-48 h-48">
+                  <svg className="w-48 h-48 transform -rotate-90">
+                    <circle cx="96" cy="96" r="88" stroke="#e5e7eb" strokeWidth="16" fill="none" />
+                    <circle cx="96" cy="96" r="88" stroke="#ef4444" strokeWidth="16" fill="none"
+                      strokeDasharray={circumference} strokeDashoffset={plagiarismOffset} strokeLinecap="round" />
+                    <circle cx="96" cy="96" r="88" stroke="#10b981" strokeWidth="16" fill="none"
+                      strokeDasharray={circumference} strokeDashoffset={circumference * plagiarismScore / 100} strokeLinecap="round" />
+                  </svg>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center">
+                    <div className="text-5xl font-bold text-indigo-900">{plagiarismScore}%</div>
+                    <div className="text-gray-600 text-sm">Similarity</div>
+                  </div>
                 </div>
               </div>
 
-              <div className="text-center">
-                <div className="relative w-48 h-48 mx-auto mb-4">
-                  <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
-                    <circle
-                      cx="50"
-                      cy="50"
-                      r="44"
-                      fill="none"
-                      stroke="#e5e7eb"
-                      strokeWidth="8"
-                    />
-                    <circle
-                      cx="50"
-                      cy="50"
-                      r="44"
-                      fill="none"
-                      stroke="url(#plagiarismGradient)"
-                      strokeWidth="8"
-                      strokeDasharray={`${plagiarismScore} ${100 - plagiarismScore}`}
-                      strokeDashoffset="25"
-                      strokeLinecap="round"
-                    />
-                    <defs>
-                      <linearGradient id="plagiarismGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                        <stop offset="0%" stopColor="#ef4444" />
-                        <stop offset="100%" stopColor="#f97316" />
-                      </linearGradient>
-                    </defs>
-                    <text
-                      x="50"
-                      y="50"
-                      textAnchor="middle"
-                      dy="7"
-                      fontSize="20"
-                      fontWeight="bold"
-                      fill="#1f2937"
-                    >
-                      {plagiarismScore}%
-                    </text>
-                  </svg>
+              <div className="flex justify-center gap-6 mb-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+                  <span className="text-sm text-gray-600">Plagiarism: {plagiarismScore}%</span>
                 </div>
-                <p className="text-gray-600 mb-2">Similarity Score</p>
-                <p className="text-sm text-gray-500">
-                  {plagiarismScore < 20 
-                    ? 'Low similarity - Original content'
-                    : plagiarismScore < 40
-                    ? 'Moderate similarity - Review recommended'
-                    : 'High similarity - Needs attention'
-                  }
-                </p>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                  <span className="text-sm text-gray-600">Original: {originalPercentage}%</span>
+                </div>
               </div>
+
+              <p className="text-center text-gray-700 text-sm">
+                The plagiarism score is {plagiarismScore}%, indicating {plagiarismScore < 20 ? 'low' : plagiarismScore < 40 ? 'moderate' : 'high'} similarity.
+              </p>
             </div>
 
-            <div className="bg-gradient-to-br from-white to-yellow-50 rounded-2xl shadow-lg p-8 border border-yellow-100">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-12 h-12 bg-gradient-to-br from-yellow-500 to-orange-600 rounded-xl flex items-center justify-center shadow-md">
-                  <span className="text-2xl">📝</span>
-                </div>
+            {/* Document Stats */}
+            <div className="bg-white rounded-lg shadow p-6">
+              <h2 className="text-2xl font-bold text-indigo-900 mb-6">Document Stats</h2>
+              
+              <div className="space-y-4">
                 <div>
-                  <h2 className="text-3xl font-bold text-indigo-900">Document Info</h2>
-                  <p className="text-sm text-gray-600">Analysis Details</p>
+                  <div className="text-sm text-gray-600 mb-1">Characters</div>
+                  <div className="text-2xl font-bold text-gray-900">
+                    {extractedText?.length?.toLocaleString() || 0}
+                  </div>
+                </div>
+
+                <div>
+                  <div className="text-sm text-gray-600 mb-1">Words</div>
+                  <div className="text-2xl font-bold text-gray-900">
+                    {extractedText ? Math.round(extractedText.split(/\s+/).length).toLocaleString() : 0}
+                  </div>
+                </div>
+
+                <div>
+                  <div className="text-sm text-gray-600 mb-1">File Name</div>
+                  <div className="text-sm font-medium text-gray-900 break-words">
+                    {paper?.filename || 'Unknown'}
+                  </div>
+                </div>
+
+                <div>
+                  <div className="text-sm text-gray-600 mb-1">Status</div>
+                  <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
+                    {paper?.status || 'Completed'}
+                  </span>
                 </div>
               </div>
 
-              <div className="space-y-4">
-                <div>
-                  <p className="text-sm text-gray-600">Text Length</p>
-                  <p className="font-semibold text-gray-900">{paper?.textLength || 0} characters</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600">Analysis Date</p>
-                  <p className="font-semibold text-gray-900">{paper?.dateUploaded || 'Unknown'}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600">Status</p>
-                  <p className="font-semibold text-green-600">{paper?.status || 'Completed'}</p>
-                </div>
+              <div className="mt-6 pt-6 border-t border-gray-200">
+                <button 
+                  onClick={() => onNavigate('dashboard')}
+                  className="w-full bg-gray-100 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-200"
+                >
+                  Back to Dashboard
+                </button>
               </div>
             </div>
           </div>
@@ -1462,25 +1394,15 @@ const AnalysisPage = ({ onNavigate, paper, userName }) => {
   );
 };
 
-// Main App Component with all routing intact
-const App = () => {
-  const [currentPage, setCurrentPage] = useState('home');
+// Main App Component
+function App() {
+  const [currentPage, setCurrentPage] = useState('login');
+  const [selectedPaper, setSelectedPaper] = useState(null);
   const [userName, setUserName] = useState(null);
-  const [currentPaper, setCurrentPaper] = useState(null);
 
   const handleLogin = (name) => {
     setUserName(name);
     setCurrentPage('home');
-  };
-
-  const handleUploadComplete = (paper) => {
-    setCurrentPaper(paper);
-    setCurrentPage('analysis');
-  };
-
-  const handleViewAnalysis = (paper) => {
-    setCurrentPaper(paper);
-    setCurrentPage('analysis');
   };
 
   const renderPage = () => {
@@ -1490,17 +1412,35 @@ const App = () => {
       case 'home':
         return <HomePage onNavigate={setCurrentPage} userName={userName} />;
       case 'upload':
-        return <UploadPage onNavigate={setCurrentPage} onUploadComplete={handleUploadComplete} userName={userName} />;
-      case 'dashboard':
-        return <DashboardPage onNavigate={setCurrentPage} onViewAnalysis={handleViewAnalysis} userName={userName} />;
+        return <UploadPage 
+          onNavigate={setCurrentPage} 
+          userName={userName}
+          onUploadComplete={(paper) => {
+            setSelectedPaper(paper);
+            setCurrentPage('analysis');
+          }} 
+        />;
       case 'analysis':
-        return <AnalysisPage onNavigate={setCurrentPage} paper={currentPaper} userName={userName} />;
+        return <AnalysisPage 
+          paper={selectedPaper} 
+          onNavigate={setCurrentPage}
+          userName={userName}
+        />;
+      case 'dashboard':
+        return <DashboardPage 
+          onNavigate={setCurrentPage}
+          userName={userName}
+          onViewAnalysis={(paper) => {
+            setSelectedPaper(paper);
+            setCurrentPage('analysis');
+          }} 
+        />;
       default:
-        return <HomePage onNavigate={setCurrentPage} userName={userName} />;
+        return <LoginPage onLogin={handleLogin} onNavigate={setCurrentPage} />;
     }
   };
 
-  return renderPage();
-};
+  return <div className="App">{renderPage()}</div>;
+}
 
 export default App;
