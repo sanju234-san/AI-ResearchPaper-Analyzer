@@ -40,3 +40,93 @@
 .read-the-docs {
   color: #888;
 }
+
+/* AR/VR 3D Effects for Research Paper Cards */
+@keyframes float-3d {
+  0%, 100% { 
+    transform: translateY(0px) rotateX(0deg) rotateY(0deg); 
+  }
+  25% { 
+    transform: translateY(-10px) rotateX(5deg) rotateY(2deg); 
+  }
+  50% { 
+    transform: translateY(-5px) rotateX(-3deg) rotateY(-1deg); 
+  }
+  75% { 
+    transform: translateY(-8px) rotateX(2deg) rotateY(3deg); 
+  }
+}
+
+.paper-3d {
+  animation: float-3d 6s ease-in-out infinite;
+  transform-style: preserve-3d;
+}
+
+.glow-effect {
+  filter: drop-shadow(0 0 20px rgba(59, 130, 246, 0.5));
+}
+
+/* Enhanced 3D perspective */
+.perspective-1000 {
+  perspective: 1000px;
+}
+
+.transform-style-3d {
+  transform-style: preserve-3d;
+}
+
+/* Smooth transitions for AR/VR effects */
+.transition-3d {
+  transition: all 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+/* Depth shadow effects */
+.depth-shadow {
+  box-shadow: 
+    0 25px 50px -12px rgba(0, 0, 0, 0.25),
+    0 8px 25px rgba(59, 130, 246, 0.15);
+}
+
+/* Hover glow enhancement */
+.hover-glow:hover {
+  filter: drop-shadow(0 0 30px rgba(59, 130, 246, 0.7));
+}
+
+/* Floating animations for the background */
+@keyframes float-screen {
+  0%, 100% { transform: translateY(0px) scale(1); }
+  50% { transform: translateY(-10px) scale(1.02); }
+}
+
+@keyframes float-inner {
+  0%, 100% { transform: translateY(0px) scale(1); }
+  50% { transform: translateY(-5px) scale(1.01); }
+}
+
+@keyframes float-deep {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-3px); }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  50% { transform: translateY(-20px) rotate(5deg); }
+}
+
+.animate-float-screen {
+  animation: float-screen 6s ease-in-out infinite;
+}
+
+.animate-float-inner {
+  animation: float-inner 4s ease-in-out infinite;
+  animation-delay: 1s;
+}
+
+.animate-float-deep {
+  animation: float-deep 3s ease-in-out infinite;
+  animation-delay: 2s;
+}
+
+.animate-float {
+  animation: float 8s ease-in-out infinite;
+}
