@@ -491,21 +491,29 @@ ai-research-analyzer/
 
 ### Home Page
 <img src="screenshots/home.png" alt="Home Page" width="800"/>
+<img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/9540c0fe-1947-4889-8002-fa93ce0b2b21" />
+
 
 *Modern landing page with interactive features*
 
 ### Upload Page
 <img src="screenshots/upload.png" alt="Upload Page" width="800"/>
+<img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/5ca2c56d-2fbf-446d-80c9-6f1bfd2e45c1" />
+
 
 *Drag-and-drop file upload with progress indicators*
 
 ### Analysis Page
 <img src="screenshots/analysis.png" alt="Analysis Page" width="800"/>
+<img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/468b0dd2-7745-4dcf-a280-39e237cee7bd" />
+
 
 *Comprehensive analysis with plagiarism detection and Q&A*
 
 ### Dashboard
 <img src="screenshots/dashboard.png" alt="Dashboard" width="800"/>
+<img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/76a1ae4b-b68c-4c0d-b7c7-8a269ffd1a00" />
+
 
 *Manage all analyzed papers in one place*
 
