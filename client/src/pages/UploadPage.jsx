@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Upload } from 'lucide-react';
+import { motion } from 'framer-motion';
 import NavBar from '../components/NavBar';
 import LoadingOverlay from '../components/LoadingOverlay';
 
@@ -85,7 +86,13 @@ const UploadPage = ({ onNavigate, onUploadComplete, userName }) => {
   };
 
   return (
-    <div className="min-h-screen bg-primary">
+    <motion.div 
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -12 }}
+      transition={{ duration: 0.3, ease: "easeOut" }}
+      className="min-h-screen bg-primary"
+    >
       {isUploading && <LoadingOverlay uploadProgress={uploadProgress} fileName={file?.name || 'Document'} />}
       <NavBar onNavigate={onNavigate} userName={userName} />
 
@@ -142,7 +149,7 @@ const UploadPage = ({ onNavigate, onUploadComplete, userName }) => {
           {isUploading ? 'Analyzing with AI...' : 'Start Analysis'}
         </button>
       </main>
-    </div>
+    </motion.div>
   );
 };
 

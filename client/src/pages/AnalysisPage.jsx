@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Download, Share2, ChevronDown, ChevronUp, Search, BookOpen, Clock, AlignLeft, Layers, Tags, Brain, SearchCode, Ruler } from 'lucide-react';
 import NavBar from '../components/NavBar';
+import { motion } from 'framer-motion';
 import TechBadge from '../components/TechBadge';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
@@ -9,9 +10,10 @@ const AnalysisPage = ({ onNavigate, paper, userName }) => {
   const [expandedSections, setExpandedSections] = useState({});
   const [question, setQuestion] = useState('');
   const [chatHistory, setChatHistory] = useState(
-    paper?.answer?.answer ? [{ role: 'user', content: paper.answer.question }, { role: 'ai', content: paper.answer.answer, chunks_used: paper.answer.chunks_used, source_chunks: paper.answer.source_chunks }] : []
+    paper?.answer?.answer ? [{ role: 'user', content: paper?.answer?.question || '' }, { role: 'ai', content: paper.answer.answer, chunks_used: paper.answer.chunks_used, source_chunks: paper.answer.source_chunks }] : []
   );
   const [isAsking, setIsAsking] = useState(false);
+  const [analysisMode, setAnalysisMode] = useState('detailed');
   const [plagiarismScore] = useState(paper?.plagiarism?.score ?? (Math.floor(Math.random() * 30) + 15));
   const plagiarismReasoning = paper?.plagiarism?.reasoning || "Analyzing document structure...";
 
@@ -62,8 +64,15 @@ const AnalysisPage = ({ onNavigate, paper, userName }) => {
     }
   };
 
-  const text = paper?.extractedText || '';
-  const summary = paper?.summary || '';
+  const text = paper?.extracted_text || paper?.extractedText || '';
+  const summaryObj = paper?.summary || {};
+  
+  const getSummaryContent = () => {
+    if (typeof summaryObj === 'string') return summaryObj;
+    return summaryObj[analysisMode] || summaryObj.detailed || summaryObj.summary || 'Summary is generating...';
+  };
+  
+  const summary = getSummaryContent();
   const keywords = paper?.keywords || [];
   const ragStats = paper?.ragStats || {};
   const originalPct = 100 - plagiarismScore;
@@ -73,7 +82,13 @@ const AnalysisPage = ({ onNavigate, paper, userName }) => {
   const kwColors = ['bg-mint/15 text-mint border-mint/20', 'bg-amber/15 text-amber border-amber/20', 'bg-purple/15 text-purple border-purple/20', 'bg-blue-400/15 text-blue-400 border-blue-400/20'];
 
   return (
-    <div className="min-h-screen bg-primary">
+    <motion.div 
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -12 }}
+      transition={{ duration: 0.3, ease: "easeOut" }}
+      className="min-h-screen bg-primary"
+    >
       <NavBar onNavigate={onNavigate} userName={userName} />
 
       <div className="max-w-7xl mx-auto px-6 pt-24 pb-16">
@@ -110,6 +125,27 @@ const AnalysisPage = ({ onNavigate, paper, userName }) => {
                   <TechBadge label="AI Summary" color="mint" className="mt-1" />
                 </div>
               </div>
+              
+              <div className="flex gap-2 mb-6 border-b border-white/10 pb-2">
+                {[
+                  { id: 'detailed', label: 'Detailed' },
+                  { id: 'code_based', label: 'Code-Based' },
+                  { id: 'aspect_oriented', label: 'Aspect-Oriented' }
+                ].map(mode => (
+                  <button
+                    key={mode.id}
+                    onClick={() => setAnalysisMode(mode.id)}
+                    className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
+                      analysisMode === mode.id 
+                        ? 'bg-mint/10 text-mint border border-mint/20' 
+                        : 'text-gray-400 hover:text-white hover:bg-white/5'
+                    }`}
+                  >
+                    {mode.label}
+                  </button>
+                ))}
+              </div>
+
               <div className="markdown-dark">
                 {summary.split('\n').map((line, i) => {
                   if (line.startsWith('# ')) return <h1 key={i}>{line.slice(2)}</h1>;
@@ -284,12 +320,10 @@ const AnalysisPage = ({ onNavigate, paper, userName }) => {
                 </button>
               </div>
             </div>
-
-
           </div>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 };
 

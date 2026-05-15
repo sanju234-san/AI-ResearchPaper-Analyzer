@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Upload, Search, BookOpen, BarChart3, Settings, LogOut, User, RefreshCw, Database, FileText, BarChart2, ShieldAlert } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import TechBadge from '../components/TechBadge';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
@@ -98,6 +100,20 @@ const DashboardPage = ({ onNavigate, onViewAnalysis, userName }) => {
 
   const totalWords = papers.reduce((s, p) => s + (p.extractedText ? p.extractedText.split(/\s+/).length : Math.round((p.textLength || 0) / 5)), 0);
 
+  // Generate chart data for the last 7 days
+  const last7Days = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() - (6 - i));
+    return d.toLocaleDateString();
+  });
+  
+  const chartData = last7Days.map(date => {
+    return {
+      date: date.substring(0, 5), // short date
+      count: papers.filter(p => new Date(p.dateUploaded).toLocaleDateString() === date).length
+    };
+  });
+
   if (loading) {
     return (
       <div className="min-h-screen bg-primary flex items-center justify-center">
@@ -110,7 +126,13 @@ const DashboardPage = ({ onNavigate, onViewAnalysis, userName }) => {
   }
 
   return (
-    <div className="min-h-screen bg-primary flex">
+    <motion.div 
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -12 }}
+      transition={{ duration: 0.3, ease: "easeOut" }}
+      className="min-h-screen bg-primary flex"
+    >
       {/* Sidebar */}
       <aside className="w-60 bg-[#0d0d0d] border-r border-white/5 flex flex-col">
         <div className="p-5 border-b border-white/5">
@@ -195,6 +217,24 @@ const DashboardPage = ({ onNavigate, onViewAnalysis, userName }) => {
             ))}
           </div>
 
+          {/* Chart */}
+          <div className="glass-card p-6 mb-6">
+            <h2 className="text-lg font-display font-bold text-white mb-4">Activity (Last 7 Days)</h2>
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={chartData}>
+                  <XAxis dataKey="date" stroke="#6B7280" fontSize={12} tickLine={false} axisLine={false} />
+                  <YAxis stroke="#6B7280" fontSize={12} tickLine={false} axisLine={false} allowDecimals={false} />
+                  <Tooltip 
+                    cursor={{fill: 'rgba(255,255,255,0.05)'}}
+                    contentStyle={{ backgroundColor: '#111827', borderColor: 'rgba(255,255,255,0.1)', borderRadius: '8px' }}
+                  />
+                  <Bar dataKey="count" fill="#6EE7B7" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
           {/* Search + Upload */}
           <div className="flex gap-3 mb-6">
             <div className="flex-1 relative">
@@ -265,7 +305,7 @@ const DashboardPage = ({ onNavigate, onViewAnalysis, userName }) => {
           )}
         </div>
       </main>
-    </div>
+    </motion.div>
   );
 };
 

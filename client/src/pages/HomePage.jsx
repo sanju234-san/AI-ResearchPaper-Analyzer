@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import NavBar from '../components/NavBar';
 import TechBadge from '../components/TechBadge';
 import { Search, FileText, Tags, Bot } from 'lucide-react';
+import { motion, useAnimation, useInView } from 'framer-motion';
+import { useRef } from 'react';
 
 const TypewriterTitle = () => {
   const [text, setText] = useState('');
@@ -51,8 +53,50 @@ const HomePage = ({ onNavigate, userName }) => {
     { value: 'FAISS', label: 'Vector DB' },
   ];
 
+  const AnimatedCounter = ({ value, label }) => {
+    const isNumber = !isNaN(parseInt(value));
+    const finalVal = parseInt(value) || 0;
+    const suffix = value.toString().replace(/[0-9]/g, '');
+    
+    const [count, setCount] = useState(0);
+    const ref = useRef(null);
+    const inView = useInView(ref, { once: true, margin: "-100px" });
+
+    useEffect(() => {
+      if (inView && isNumber) {
+        let startTime;
+        const duration = 2000;
+        
+        const step = (timestamp) => {
+          if (!startTime) startTime = timestamp;
+          const progress = Math.min((timestamp - startTime) / duration, 1);
+          setCount(Math.floor(progress * finalVal));
+          if (progress < 1) {
+            window.requestAnimationFrame(step);
+          }
+        };
+        window.requestAnimationFrame(step);
+      }
+    }, [inView, isNumber, finalVal]);
+
+    return (
+      <div ref={ref}>
+        <div className="text-2xl font-bold text-white font-mono">
+          {isNumber ? count : value}{isNumber ? suffix : ''}
+        </div>
+        <div className="text-xs text-mint mt-1">{label}</div>
+      </div>
+    );
+  };
+
   return (
-    <div className="min-h-screen bg-primary">
+    <motion.div 
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.3 }}
+      className="min-h-screen bg-primary"
+    >
       <NavBar onNavigate={onNavigate} userName={userName} />
 
       {/* Hero */}
@@ -97,10 +141,7 @@ const HomePage = ({ onNavigate, userName }) => {
         <div className="max-w-4xl mx-auto glass-card p-6">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
             {stats.map((s, i) => (
-              <div key={i}>
-                <div className="text-2xl font-bold text-white font-mono">{s.value}</div>
-                <div className="text-xs text-mint mt-1">{s.label}</div>
-              </div>
+              <AnimatedCounter key={i} value={s.value} label={s.label} />
             ))}
           </div>
         </div>
@@ -134,7 +175,7 @@ const HomePage = ({ onNavigate, userName }) => {
       <footer className="py-8 px-6 border-t border-white/5 text-center mt-12">
         <p className="text-xs text-gray-600">Built by Sanjeevni Dhir — GenAI Engineer | SRM University Delhi-NCR</p>
       </footer>
-    </div>
+    </motion.div>
   );
 };
 

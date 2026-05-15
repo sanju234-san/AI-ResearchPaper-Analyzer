@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { User, Settings, Shield, CreditCard, Bell, LogOut, Check } from 'lucide-react';
+import { motion } from 'framer-motion';
 import NavBar from '../components/NavBar';
 
 const SettingsPage = ({ onNavigate, userName }) => {
@@ -44,7 +45,13 @@ const SettingsPage = ({ onNavigate, userName }) => {
   };
 
   return (
-    <div className="min-h-screen bg-primary">
+    <motion.div 
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -12 }}
+      transition={{ duration: 0.3, ease: "easeOut" }}
+      className="min-h-screen bg-primary"
+    >
       <NavBar onNavigate={onNavigate} userName={userName} />
       
       <main className="max-w-5xl mx-auto px-6 pt-28 pb-16">
@@ -171,7 +178,7 @@ const SettingsPage = ({ onNavigate, userName }) => {
           </div>
         </div>
       </main>
-    </div>
+    </motion.div>
   );
 };
 

@@ -3,12 +3,15 @@ import { BookOpen, Eye, EyeOff, AlertCircle, Loader2 } from 'lucide-react';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
+import { motion } from 'framer-motion';
+
 const LoginPage = ({ onLogin, onNavigate }) => {
   const [isLogin, setIsLogin] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({ email: '', password: '', name: '' });
   const [error, setError] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
 
   // Auto-login if token exists
   useEffect(() => {
@@ -20,7 +23,81 @@ const LoginPage = ({ onLogin, onNavigate }) => {
         onLogin(parsed.name || parsed.email);
       } catch {}
     }
+
+    // Load Google Identity Services Script dynamically
+    const loadGoogleScript = () => {
+      if (document.getElementById('google-gsi-script')) {
+        renderGoogleButton();
+        return;
+      }
+      const script = document.createElement('script');
+      script.src = 'https://accounts.google.com/gsi/client';
+      script.id = 'google-gsi-script';
+      script.async = true;
+      script.defer = true;
+      script.onload = renderGoogleButton;
+      document.head.appendChild(script);
+    };
+
+    const renderGoogleButton = () => {
+      if (!window.google) return;
+      window.google.accounts.id.initialize({
+        client_id: clientId,
+        callback: handleCredentialResponse
+      });
+      window.google.accounts.id.renderButton(
+        document.getElementById('google-signIn-button'),
+        { theme: 'outline', size: 'large', type: 'standard', width: 300 }
+      );
+    };
+
+    loadGoogleScript();
+
+    return () => {
+      // Cleanup is usually not necessary for external scripts like GSI,
+      // but if needed we could remove it here.
+    };
   }, []);
+
+  const handleCredentialResponse = async (response) => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const jwtToken = response.credential;
+      const payloadSegment = jwtToken.split('.')[1];
+      const base64 = payloadSegment.replace(/-/g, '+').replace(/_/g, '/');
+      const decodedPayload = JSON.parse(atob(base64));
+      
+      const { name, email, picture, sub } = decodedPayload;
+
+      const res = await fetch(`${API_BASE_URL}/api/auth/google-auth`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email,
+          name,
+          google_id: sub,
+          avatar_url: picture
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || 'Google authentication failed');
+
+      if (data.success && data.token) {
+        localStorage.setItem('auth_token', data.token);
+        localStorage.setItem('auth_user', JSON.stringify(data.user));
+        onLogin(data.user.name || data.user.email);
+      } else {
+        throw new Error('Unexpected response from server');
+      }
+    } catch (err) {
+      console.error('Google Auth Error:', err);
+      setError('Google Sign-In failed: ' + err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -75,13 +152,23 @@ const LoginPage = ({ onLogin, onNavigate }) => {
   };
 
   return (
-    <div className="min-h-screen bg-primary flex items-center justify-center p-4 relative noise-overlay">
+    <motion.div 
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="min-h-screen bg-primary flex items-center justify-center p-4 relative noise-overlay"
+    >
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-mint/5 rounded-full blur-[150px]" />
         <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple/5 rounded-full blur-[150px]" />
       </div>
 
-      <div className="relative w-full max-w-md z-10 animate-slide-up">
+      <motion.div 
+        initial={{ y: 20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ delay: 0.1, ease: "easeOut" }}
+        className="relative w-full max-w-md z-10"
+      >
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-14 h-14 bg-mint/10 border border-mint/30 rounded-2xl mb-4">
             <BookOpen className="w-7 h-7 text-mint" />
@@ -91,6 +178,13 @@ const LoginPage = ({ onLogin, onNavigate }) => {
         </div>
 
         <div className="glass-card p-8">
+          <div id="google-signIn-button" className="flex justify-center mb-6 w-full"></div>
+
+          <div className="relative my-6">
+            <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-white/10" /></div>
+            <div className="relative flex justify-center text-xs"><span className="px-3 bg-card text-gray-500">Or continue with email</span></div>
+          </div>
+
           <div className="flex gap-1 mb-6 bg-white/5 p-1 rounded-lg">
             {['Login', 'Sign Up'].map((label, i) => (
               <button key={label} onClick={() => { setIsLogin(i === 0); setError(null); }}
@@ -160,8 +254,8 @@ const LoginPage = ({ onLogin, onNavigate }) => {
             Continue as Guest
           </button>
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 };
 

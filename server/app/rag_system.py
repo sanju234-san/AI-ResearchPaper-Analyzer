@@ -58,33 +58,26 @@ def get_llm() -> ChatGroq:
 
 
 # --- Prompts ---
-RAG_PROMPT = PromptTemplate(
-    input_variables=["context", "question"],
-    template="""You are an expert research paper analyst. Answer the question using ONLY the provided context from the paper.
-If the answer is not in the context, say "This information is not available in the provided paper."
-Be precise, cite relevant sections when possible, and keep your answer concise but complete.
+IDENTITY = "You are ResearchLens AI, a specialized research paper analysis assistant. You have deep expertise in Machine Learning, Computer Science, Biomedical Research, Physics, Mathematics, and interdisciplinary fields. You read extracted text from research papers and provide structured, accurate, evidence-grounded analysis. You never hallucinate. You never invent citations, numbers, author names, or findings not present in the provided text. If something is not in the paper you say exactly: This information is not available in the provided paper."
 
-Context from paper:
-{context}
-
-Question: {question}
-
-Answer:"""
+DETAILED_PROMPT = PromptTemplate(
+    input_variables=["context"],
+    template=IDENTITY + "\n\nAnalyze this paper and provide a comprehensive academic breakdown. Start with the research problem being addressed. Describe the methodology including datasets, experimental setup, and evaluation approach. List the three to six most important findings with exact numbers from the paper. State the limitations the authors acknowledge and add one critical observation of your own. Explain why this paper matters to the field and who benefits from it. Use precise academic language. Reference specific sections when possible.\n\nPaper Content:\n{context}"
 )
 
-SUMMARY_PROMPT = PromptTemplate(
+CODE_BASED_PROMPT = PromptTemplate(
     input_variables=["context"],
-    template="""You are a research paper summarizer. Based on the following extracted text from a research paper, provide:
+    template=IDENTITY + "\n\nAnalyze this paper from an implementation perspective. Describe the architecture or system design in engineering terms. Extract every hyperparameter, optimizer setting, batch size, learning rate schedule, and loss function mentioned. Describe the data pipeline including preprocessing, augmentation, and splits. Reconstruct algorithms as pseudocode using clear step-by-step notation. List what a developer would need to reproduce this work. Flag anything that is missing and would block reproduction.\n\nPaper Content:\n{context}"
+)
 
-1. **Abstract Summary** (2-3 sentences): Core contribution and methodology
-2. **Key Findings** (3-5 bullet points): Main results and discoveries
-3. **Methodology** (2-3 sentences): Approach and techniques used
-4. **Significance** (1-2 sentences): Why this research matters
+ASPECT_ORIENTED_PROMPT = PromptTemplate(
+    input_variables=["context"],
+    template=IDENTITY + "\n\nEvaluate this paper as a peer reviewer. Score each of the following dimensions from one to ten with a one to two sentence justification grounded in evidence from the paper. Score Novelty based on how original the contribution is. Score Technical Rigor based on experimental design and statistical validity. Score Reproducibility based on whether an independent researcher could replicate the results. Score Clarity based on writing quality and logical structure. Score Practical Impact based on real-world applicability. Score Ethical Considerations based on whether harms and biases are addressed. Score Citation Quality based on fairness and completeness of related work. End with an overall verdict of Accept, Minor Revision, Major Revision, or Reject with a two sentence explanation. Close with a three sentence plain-language TL;DR.\n\nPaper Content:\n{context}"
+)
 
-Paper Content:
-{context}
-
-Provide the analysis in clean markdown format:"""
+QA_PROMPT = PromptTemplate(
+    input_variables=["context", "question"],
+    template=IDENTITY + "\n\nAnswer the following question using only the context provided from the paper. Detect whether the question is conceptual and answer in the Detailed style, implementation-focused and answer in the Code-Based style, or evaluative and answer in the Aspect-Oriented style. Combine styles if the question spans multiple types. Cite the relevant section of the paper for every factual claim.\n\nContext from paper:\n{context}\n\nQuestion: {question}\n\nAnswer:"
 )
 
 
@@ -183,7 +176,7 @@ class LangChainRAGSystem:
 
         rag_chain = (
             {"context": retriever | format_docs, "question": RunnablePassthrough()}
-            | RAG_PROMPT
+            | QA_PROMPT
             | get_llm()
             | StrOutputParser()
         )
@@ -201,16 +194,27 @@ class LangChainRAGSystem:
             "chunks_used": len(source_chunks)
         }
 
-    def generate_summary(self, text: str) -> dict:
+    async def generate_summary(self, text: str) -> dict:
         """Generate structured summary using Groq directly (not RAG)."""
+        import asyncio
         llm = get_llm()
         # Use first 8000 chars for summary (fits in context)
         truncated = text[:8000]
-        prompt = SUMMARY_PROMPT.format(context=truncated)
-        response = llm.invoke(prompt)
+        
+        detailed_coro = llm.ainvoke(DETAILED_PROMPT.format(context=truncated))
+        code_based_coro = llm.ainvoke(CODE_BASED_PROMPT.format(context=truncated))
+        aspect_oriented_coro = llm.ainvoke(ASPECT_ORIENTED_PROMPT.format(context=truncated))
+        
+        detailed_resp, code_based_resp, aspect_oriented_resp = await asyncio.gather(
+            detailed_coro, code_based_coro, aspect_oriented_coro
+        )
+
         return {
             "success": True,
-            "summary": response.content
+            "detailed": detailed_resp.content,
+            "code_based": code_based_resp.content,
+            "aspect_oriented": aspect_oriented_resp.content,
+            "summary": detailed_resp.content  # Fallback for old code
         }
 
     def extract_keywords(self, text: str) -> List[str]:

@@ -136,7 +136,7 @@ async def analyze_pdf(
     ingest_result = rag_system.ingest_document(text, doc_id, {"filename": file.filename})
 
     # Generate summary + keywords via LLM
-    summary_result = rag_system.generate_summary(text)
+    summary_result = await rag_system.generate_summary(text)
     keywords = rag_system.extract_keywords(text)
 
     # Analyze plagiarism
@@ -166,7 +166,7 @@ async def analyze_pdf(
             "user_email": user_email,
             "text_length": len(text),
             "extracted_text": text,
-            "summary": summary_result.get("summary", ""),
+            "summary": summary_result,
             "keywords": keywords,
             "rag_stats": ingest_result,
             "plagiarism": plagiarism_result,
@@ -181,7 +181,7 @@ async def analyze_pdf(
         "filename": file.filename,
         "text_length": len(text),
         "extracted_text": text,
-        "summary": summary_result.get("summary", ""),
+        "summary": summary_result,
         "keywords": keywords,
         "rag_stats": ingest_result,
         "plagiarism": plagiarism_result,
@@ -225,7 +225,7 @@ async def analyze_image(
         }
 
     ingest_result = rag_system.ingest_document(text, doc_id, {"filename": file.filename})
-    summary_result = rag_system.generate_summary(text)
+    summary_result = await rag_system.generate_summary(text)
     keywords = rag_system.extract_keywords(text)
     plagiarism_result = rag_system.analyze_plagiarism(text)
 
@@ -252,7 +252,7 @@ async def analyze_image(
             "user_email": user_email,
             "text_length": len(text),
             "extracted_text": text,
-            "summary": summary_result.get("summary", ""),
+            "summary": summary_result,
             "keywords": keywords,
             "rag_stats": ingest_result,
             "plagiarism": plagiarism_result,
@@ -267,7 +267,7 @@ async def analyze_image(
         "filename": file.filename,
         "text_length": len(text),
         "extracted_text": text,
-        "summary": summary_result.get("summary", ""),
+        "summary": summary_result,
         "keywords": keywords,
         "rag_stats": ingest_result,
         "plagiarism": plagiarism_result,
