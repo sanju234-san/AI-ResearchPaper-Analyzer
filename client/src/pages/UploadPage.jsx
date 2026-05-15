@@ -1,8 +1,11 @@
-// client/src/pages/UploadPage.jsx
 import React, { useState } from 'react';
-import api from '../services/api';
+import { Upload } from 'lucide-react';
+import NavBar from '../components/NavBar';
+import LoadingOverlay from '../components/LoadingOverlay';
 
-const UploadPage = ({ onNavigate, onUploadComplete }) => {
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
+const UploadPage = ({ onNavigate, onUploadComplete, userName }) => {
   const [file, setFile] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -10,210 +13,134 @@ const UploadPage = ({ onNavigate, onUploadComplete }) => {
   const [error, setError] = useState(null);
   const [question, setQuestion] = useState('');
 
-  const handleDragOver = (e) => {
-    e.preventDefault();
-    setIsDragging(true);
-  };
-
-  const handleDragLeave = () => {
-    setIsDragging(false);
-  };
-
+  const handleDragOver = (e) => { e.preventDefault(); setIsDragging(true); };
+  const handleDragLeave = () => setIsDragging(false);
   const handleDrop = (e) => {
-    e.preventDefault();
-    setIsDragging(false);
-    const droppedFile = e.dataTransfer.files[0];
-    if (droppedFile && (droppedFile.type === 'application/pdf' || droppedFile.type.startsWith('image/'))) {
-      setFile(droppedFile);
-      setError(null);
-    } else {
-      setError('Please upload a PDF or image file');
-    }
+    e.preventDefault(); setIsDragging(false);
+    const f = e.dataTransfer.files[0];
+    if (f && (f.type === 'application/pdf' || f.type.startsWith('image/'))) { setFile(f); setError(null); }
+    else setError('Please upload a PDF or image file');
   };
-
-  const handleFileSelect = (e) => {
-    const selectedFile = e.target.files[0];
-    if (selectedFile) {
-      setFile(selectedFile);
-      setError(null);
-    }
+  const handleFileSelect = (e) => { 
+    const f = e.target.files[0];
+    if (f) { 
+      if (f.type === 'application/pdf' || f.type.startsWith('image/')) {
+        setFile(f); 
+        setError(null); 
+      } else {
+        setError('Please upload a PDF or image file');
+      }
+    } 
   };
 
   const handleStartAnalysis = async () => {
     if (!file) return;
-
-    setIsUploading(true);
-    setUploadProgress(10);
-    setError(null);
-
+    setIsUploading(true); setUploadProgress(0); setError(null);
     try {
-      let result;
-      
-      // Check if file is PDF or image
-      if (file.type === 'application/pdf') {
-        setUploadProgress(30);
-        result = await api.analyzePDF(file, question || null);
-      } else if (file.type.startsWith('image/')) {
-        setUploadProgress(30);
-        result = await api.analyzeImage(file, question || null);
-      } else {
-        throw new Error('Unsupported file type');
-      }
+      const interval = setInterval(() => {
+        setUploadProgress(p => { if (p >= 90) { clearInterval(interval); return p; } return p + 2; });
+      }, 100);
 
+      const formData = new FormData();
+      formData.append('file', file);
+      if (question) formData.append('question', question);
+
+      const headers = {};
+      const token = localStorage.getItem('auth_token');
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      const endpoint = file.type === 'application/pdf' ? '/analyze-pdf' : '/analyze-image';
+      const res = await fetch(`${API_BASE_URL}${endpoint}`, { method: 'POST', body: formData, headers });
+      if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.detail || 'Analysis failed'); }
+      const result = await res.json();
+
+      clearInterval(interval);
       setUploadProgress(100);
 
-      // Create paper object for dashboard
       const paper = {
         id: Date.now(),
+        doc_id: result.doc_id,
         title: file.name.replace(/\.[^/.]+$/, ""),
         filename: result.filename || file.name,
         authors: "Unknown",
-        dateUploaded: new Date().toISOString().split('T')[0],
+        dateUploaded: new Date().toLocaleDateString(),
         status: "Completed",
         textLength: result.text_length || 0,
         extractedText: result.extracted_text || '',
+        summary: result.summary || '',
+        keywords: result.keywords || [],
+        ragStats: result.rag_stats || {},
+        plagiarism: result.plagiarism || null,
         answer: result.answer || null,
-        analysis: result.analysis || null
       };
 
-      // Store in localStorage for persistence
-      const existingPapers = JSON.parse(localStorage.getItem('papers') || '[]');
-      existingPapers.push(paper);
-      localStorage.setItem('papers', JSON.stringify(existingPapers));
-
-      setTimeout(() => {
-        onUploadComplete(paper);
-      }, 500);
-
+      const papers = JSON.parse(localStorage.getItem('papers') || '[]');
+      papers.push(paper);
+      localStorage.setItem('papers', JSON.stringify(papers));
+      setTimeout(() => onUploadComplete(paper), 1200);
     } catch (err) {
-      setError(err.message || 'Upload failed. Please try again.');
-      setUploadProgress(0);
-    } finally {
-      setIsUploading(false);
+      setError(err.message || 'Upload failed');
+      setUploadProgress(0); setIsUploading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-8 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-blue-600 rounded flex items-center justify-center text-white text-xl">
-              📊
-            </div>
-            <span className="text-xl font-semibold text-gray-800">AI Research Paper Analysis</span>
-          </div>
-          <button 
-            onClick={() => onNavigate('home')}
-            className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700"
-          >
-            Home
-          </button>
+    <div className="min-h-screen bg-primary">
+      {isUploading && <LoadingOverlay uploadProgress={uploadProgress} fileName={file?.name || 'Document'} />}
+      <NavBar onNavigate={onNavigate} userName={userName} />
+
+      <main className="max-w-2xl mx-auto px-6 pt-28 pb-16">
+        <div className="text-center mb-10 animate-slide-up">
+          <h1 className="font-display text-4xl font-bold text-white mb-2">Analyze Paper</h1>
+          <p className="text-gray-500">Upload your research paper for AI-powered analysis</p>
         </div>
-      </header>
 
-      {/* Main Content */}
-      <main className="max-w-3xl mx-auto px-8 py-16">
-        <h1 className="text-5xl font-bold text-gray-900 mb-4 text-center">Analyze Paper</h1>
-        <p className="text-xl text-gray-600 mb-12 text-center">
-          Upload your research paper to get started.
-        </p>
-
-        {/* Error Message */}
         {error && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-            <p className="text-red-800">{error}</p>
-          </div>
+          <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 text-sm">{error}</div>
         )}
 
-        {/* Upload Area */}
         <div
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-          onDrop={handleDrop}
-          className={`border-2 border-dashed rounded-2xl p-16 text-center mb-8 transition-colors ${
-            isDragging ? 'border-blue-500 bg-blue-50' : 'border-gray-300 bg-white'
+          onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}
+          className={`border-2 border-dashed rounded-2xl p-12 text-center mb-6 transition-all cursor-pointer ${
+            isDragging ? 'border-mint bg-mint/5 scale-[1.01]' : 'border-white/10 bg-white/[0.02] hover:border-mint/30 hover:bg-mint/[0.02]'
           }`}
+          onClick={() => document.getElementById('file-input').click()}
         >
-          <div className="flex flex-col items-center">
-            <svg className="w-16 h-16 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-            </svg>
-            <h2 className="text-2xl font-semibold text-gray-900 mb-2">
-              Drag and drop your research paper here
-            </h2>
-            <p className="text-gray-500 mb-6">Supported formats: PDF, Image (PNG, JPG, JPEG)</p>
-            
-            <label className="bg-gray-200 text-gray-700 px-8 py-3 rounded-lg cursor-pointer hover:bg-gray-300 transition-colors">
-              Or browse your files
-              <input
-                type="file"
-                accept=".pdf,image/*"
-                onChange={handleFileSelect}
-                className="hidden"
-                disabled={isUploading}
-              />
-            </label>
-
-            {file && (
-              <div className="mt-6 p-4 bg-blue-50 rounded-lg w-full max-w-md">
-                <p className="text-blue-900 font-medium">📄 {file.name}</p>
-                <p className="text-blue-700 text-sm mt-1">
-                  {(file.size / 1024 / 1024).toFixed(2)} MB
-                </p>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Optional Question */}
-        <div className="mb-8">
-          <label className="block text-gray-700 font-medium mb-2">
-            Ask a question about the paper (optional)
+          <Upload className={`w-12 h-12 mx-auto mb-4 ${isDragging ? 'text-mint' : 'text-gray-600'}`} />
+          <h2 className="text-xl font-semibold text-white mb-1">Drag and drop your research paper</h2>
+          <p className="text-gray-500 text-sm mb-4">PDF, PNG, JPG, JPEG — up to 20MB</p>
+          <label className="inline-block bg-white/5 border border-white/10 text-gray-300 px-6 py-2.5 rounded-lg cursor-pointer hover:bg-white/10 transition-all text-sm">
+            Browse Files
+            <input id="file-input" type="file" accept=".pdf,image/*" onChange={handleFileSelect} className="hidden" disabled={isUploading} />
           </label>
-          <input
-            type="text"
-            value={question}
-            onChange={(e) => setQuestion(e.target.value)}
-            placeholder="e.g., What is the main contribution of this paper?"
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            disabled={isUploading}
-          />
+
+          {file && (
+            <div className="mt-6 p-4 glass-card inline-flex items-center gap-3">
+              <span className="text-mint text-lg">✓</span>
+              <div className="text-left">
+                <p className="text-white text-sm font-medium">{file.name}</p>
+                <p className="text-gray-500 text-xs">{(file.size / 1024 / 1024).toFixed(2)} MB • {file.type === 'application/pdf' ? 'PDF' : 'Image'}</p>
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* Upload Progress */}
-        {isUploading && (
-          <div className="mb-8">
-            <div className="flex justify-between text-sm text-gray-600 mb-2">
-              <span>Uploading and analyzing...</span>
-              <span>{uploadProgress}%</span>
-            </div>
-            <div className="w-full bg-gray-200 rounded-full h-2">
-              <div 
-                className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                style={{ width: `${uploadProgress}%` }}
-              />
-            </div>
-          </div>
-        )}
+        <div className="mb-6">
+          <label className="block text-sm font-medium text-gray-300 mb-2">Ask a question (optional)</label>
+          <input type="text" value={question} onChange={(e) => setQuestion(e.target.value)}
+            placeholder="e.g., What is the main contribution of this paper?"
+            className="w-full px-4 py-3 bg-secondary border border-white/10 rounded-lg text-white placeholder-gray-600 focus:outline-none focus:border-mint focus:ring-1 focus:ring-mint/30 transition-all"
+            disabled={isUploading} />
+        </div>
 
-        {/* Start Analysis Button */}
-        <button
-          onClick={handleStartAnalysis}
-          disabled={!file || isUploading}
-          className={`w-full py-4 rounded-lg text-lg font-semibold transition-colors ${
+        <button onClick={handleStartAnalysis} disabled={!file || isUploading}
+          className={`w-full py-4 rounded-xl text-base font-semibold transition-all ${
             file && !isUploading
-              ? 'bg-gray-800 text-white hover:bg-gray-900'
-              : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-          }`}
-        >
-          {isUploading ? 'Analyzing...' : 'Start Analysis'}
+              ? 'bg-mint text-black hover:bg-mint-dim mint-glow-hover transform hover:scale-[1.02]'
+              : 'bg-white/10 text-gray-600 cursor-not-allowed'
+          }`}>
+          {isUploading ? 'Analyzing with AI...' : 'Start Analysis'}
         </button>
-
-        <p className="text-center text-gray-500 mt-6">
-          Your file will be securely processed and analyzed using AI.
-        </p>
       </main>
     </div>
   );

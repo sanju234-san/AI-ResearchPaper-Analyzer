@@ -1,518 +1,316 @@
-﻿from fastapi import FastAPI, File, UploadFile, HTTPException, Form
+"""
+AI Research Paper Analyzer — FastAPI Backend
+Powered by LangChain + Groq (Llama 3 70B) + FAISS
+"""
+
+import os
+import sys
+sys.stdout.reconfigure(encoding='utf-8')
+import uuid
+from pathlib import Path
+from contextlib import asynccontextmanager
+from fastapi import FastAPI, File, UploadFile, Form, HTTPException, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel
-import os
-import requests
-import base64
-from dotenv import load_dotenv
+from typing import Optional
+from datetime import datetime
+import jwt
 
-# Import all your components
 from app.pdf_processor import PDFProcessor
 from app.image_processor import ImageProcessor
-from app.llm_analyzer import LLMAnalyzer
-from app.rag_system import RAGSystem
-from app.vector_store import VectorStore
+from app.rag_system import rag_system
+from app.config import UPLOAD_PATH
+from app.auth import router as auth_router
 
-# Try to load .env file
-load_dotenv()
+# --- Lifespan: Startup/Shutdown for MongoDB ---
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    from app import auth as auth_module
+    auth_module.connect_db()
+    yield
+    # Shutdown
+    auth_module.disconnect_db()
 
-# Check for Ollama configuration
-OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
-OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3")
-OLLAMA_ENABLED = os.getenv("OLLAMA_ENABLED", "true").lower() == "true"
-
-print("🔍 Checking Ollama configuration...")
-print(f"OLLAMA_BASE_URL: {OLLAMA_BASE_URL}")
-print(f"OLLAMA_MODEL: {OLLAMA_MODEL}")
-print(f"OLLAMA_ENABLED: {OLLAMA_ENABLED}")
-
-app = FastAPI(title="AI Research Paper Analyzer API")
+# --- App Setup ---
+app = FastAPI(
+    title="AI Research Paper Analyzer",
+    description="RAG-powered paper analysis with Groq Llama 3 + LangChain",
+    version="2.0.0",
+    lifespan=lifespan
+)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:5173"],
+    allow_origins=["http://localhost:5173", "http://localhost:3000", "http://127.0.0.1:5173", "http://127.0.0.1:3000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-print("🚀 Initializing AI Research Paper Analyzer components...")
+app.include_router(auth_router, prefix="/api/auth", tags=["auth"])
 
-# Check if Ollama is available
-def check_ollama_availability():
-    """Check if Ollama is running and accessible"""
-    if not OLLAMA_ENABLED:
-        return False
-    
-    try:
-        response = requests.get(f"{OLLAMA_BASE_URL}/api/tags", timeout=10)
-        if response.status_code == 200:
-            print("✅ Ollama server is running")
-            models = response.json().get("models", [])
-            if models:
-                print("📋 Available Ollama models:")
-                for model in models:
-                    model_name = model.get("name", "Unknown")
-                    print(f"   - {model_name}")
-            return True
-        else:
-            print(f"⚠️ Ollama server responded with status: {response.status_code}")
-            return False
-    except Exception as e:
-        print(f"❌ Cannot connect to Ollama server: {e}")
-        return False
+Path(UPLOAD_PATH).mkdir(parents=True, exist_ok=True)
+pdf_processor = PDFProcessor()
+image_processor = ImageProcessor()
 
-OLLAMA_AVAILABLE = check_ollama_availability()
+print("🚀 AI Research Paper Analyzer v2.0.0")
+print("🤖 LLM: Groq Llama 3 70B")
+print("🔗 RAG: LangChain + FAISS")
 
-if OLLAMA_AVAILABLE:
-    print(f"🤖 Ollama integration ENABLED with model: {OLLAMA_MODEL}")
-else:
-    print("⚠️ Ollama integration DISABLED - using local RAG system only")
 
-# Initialize all components
-try:
-    pdf_processor = PDFProcessor()
-    print("✅ PDF Processor initialized")
-except Exception as e:
-    print(f"❌ PDF Processor failed: {e}")
-    pdf_processor = None
-
-try:
-    image_processor = ImageProcessor()
-    print("✅ Image Processor initialized")
-except Exception as e:
-    print(f"❌ Image Processor failed: {e}")
-    image_processor = None
-
-try:
-    llm_analyzer = LLMAnalyzer()
-    print("✅ LLM Analyzer initialized")
-except Exception as e:
-    print(f"❌ LLM Analyzer failed: {e}")
-    llm_analyzer = None
-
-try:
-    rag_system = RAGSystem()
-    print("✅ RAG System initialized")
-except Exception as e:
-    print(f"❌ RAG System failed: {e}")
-    rag_system = None
-
-# Create necessary directories
-os.makedirs("data/uploads", exist_ok=True)
-os.makedirs("data/vector_store", exist_ok=True)
-
-# Pydantic model for summary request
-class SummaryRequest(BaseModel):
-    text: str
-
-def call_ollama_api(prompt: str, context: str = None, document_type: str = "research") -> str:
-    """Call Ollama local LLM API with smarter context handling"""
-    if not OLLAMA_AVAILABLE:
-        return "Ollama is not available. Please ensure Ollama is installed and running."
-    
-    try:
-        # Check if context is citation metadata
-        is_citation_context = False
-        if context:
-            context_lower = context.lower()
-            citation_indicators = ["au -", "py -", "t1 -", "do -", "jo -", "author:", "title:", "journal:", "citation file", "bibliographic"]
-            is_citation_context = any(indicator in context_lower for indicator in citation_indicators)
-        
-        # Build intelligent prompt based on context type
-        if is_citation_context:
-            full_prompt = f"""The user asked: "{prompt}"
-
-Available context (this is citation metadata, not full paper content):
-{context}
-
-Please provide a helpful but accurate response. Clearly indicate that this is bibliographic metadata and not the full paper content. Do not speculate about the paper's actual content beyond what's provided in the metadata."""
-        
-        elif context and ("corrupted" in context.lower() or "partial" in context.lower()):
-            full_prompt = f"""The user asked: "{prompt}"
-
-Available context (limited due to extraction issues):
-{context}
-
-Please provide a helpful response but be clear about the limitations of the available content."""
-        
-        elif context:
-            # Normal research paper with good content
-            full_prompt = f"""You are an expert research paper analyzer. Please answer the user's question based on the provided research paper content.
-
-Research Paper Content:
-{context[:3500]}
-
-User's Question: {prompt}
-
-Please provide a comprehensive, accurate answer based specifically on the research paper content."""
-        else:
-            # General question without specific context
-            full_prompt = f"""You are an expert AI research assistant. Please provide a comprehensive and accurate answer to the following question:
-
-Question: {prompt}
-
-Please provide a detailed, well-structured response that would be helpful for someone analyzing research papers."""
-        
-        payload = {
-            "model": OLLAMA_MODEL,
-            "prompt": full_prompt,
-            "stream": False,
-            "options": {
-                "temperature": 0.3,
-                "top_p": 0.8,
-                "num_predict": 2000,
-                "repeat_penalty": 1.1
-            }
+@app.get("/")
+async def root():
+    return {
+        "message": "AI Research Paper Analyzer API v2.0.0",
+        "status": "active",
+        "stack": {
+            "llm": "groq/llama3-70b-8192",
+            "rag": "langchain+faiss",
+            "embeddings": "sentence-transformers/all-MiniLM-L6-v2"
+        },
+        "endpoints": {
+            "health": "/health",
+            "analyze_pdf": "/analyze-pdf",
+            "analyze_image": "/analyze-image",
+            "ask_question": "/ask-question",
+            "documents": "/documents",
+            "reset": "/reset"
         }
-        
-        print(f"🤖 Calling Ollama for: {prompt[:100]}...")
-        response = requests.post(f"{OLLAMA_BASE_URL}/api/generate", json=payload, timeout=120)
-        
-        if response.status_code == 200:
-            result = response.json()
-            answer = result.get("response", "").strip()
-            print(f"✅ Ollama response received ({len(answer)} characters)")
-            return answer
-        else:
-            print(f"❌ Ollama API error: {response.status_code}")
-            return f"I apologize, but I encountered an error while processing your question. Please try again."
-            
-    except Exception as e:
-        print(f"❌ Ollama API call failed: {e}")
-        return f"I apologize, but I'm currently unable to process your question. Please try again later."
+    }
+
+
+@app.get("/health")
+async def health():
+    return {
+        "status": "healthy",
+        "llm": "groq/llama3-70b-8192",
+        "rag": "langchain+faiss",
+        "version": "2.0.0"
+    }
+
 
 def _is_valid_pdf(file_path: str) -> bool:
     """Check if file is a valid PDF"""
     try:
         with open(file_path, "rb") as f:
             header = f.read(4)
-            # Check for PDF header
             if header != b'%PDF':
                 return False
-            
-            # Check file size
-            f.seek(0, 2)  # Seek to end
+            f.seek(0, 2)
             file_size = f.tell()
-            if file_size < 100:  # PDFs should be at least 100 bytes
+            if file_size < 100:
                 return False
-            
             return True
     except:
         return False
 
-@app.get("/")
-async def root():
-    components_status = {
-        "pdf_processor": pdf_processor is not None,
-        "image_processor": image_processor is not None,
-        "llm_analyzer": llm_analyzer is not None,
-        "rag_system": rag_system is not None,
-        "ollama_available": OLLAMA_AVAILABLE,
-        "ollama_model": OLLAMA_MODEL if OLLAMA_AVAILABLE else None
-    }
-    
-    return {
-        "message": "AI Research Paper Analyzer API is running!",
-        "status": "active",
-        "components": components_status,
-        "endpoints": {
-            "health": "/health",
-            "analyze_pdf": "/analyze-pdf",
-            "analyze_image": "/analyze-image",
-            "ask_question": "/ask-question",
-            "generate_summary": "/generate-summary",
-            "documents": "/documents",
-            "paper_overview": "/paper-overview",
-            "ollama_status": "/ollama-status"
-        }
-    }
-
-@app.get("/health")
-async def health_check():
-    return {
-        "status": "healthy", 
-        "message": "Backend server is working correctly",
-        "ollama_available": OLLAMA_AVAILABLE
-    }
-
-@app.get("/ollama-status")
-async def ollama_status():
-    """Check Ollama status and available models"""
-    try:
-        response = requests.get(f"{OLLAMA_BASE_URL}/api/tags", timeout=10)
-        if response.status_code == 200:
-            models_data = response.json()
-            models = models_data.get("models", [])
-            available_models = [model.get("name") for model in models if model.get("name")]
-            
-            return {
-                "status": "connected",
-                "message": "Ollama server is running",
-                "current_model": OLLAMA_MODEL,
-                "available_models": available_models
-            }
-        else:
-            return {
-                "status": "error",
-                "message": f"Ollama server error: {response.status_code}"
-            }
-    except Exception as e:
-        return {
-            "status": "disconnected",
-            "message": f"Cannot connect to Ollama server: {str(e)}"
-        }
-
-@app.post("/generate-summary")
-async def generate_summary(request: SummaryRequest):
-    """Generate AI-powered summary of research paper using Ollama"""
-    try:
-        if not OLLAMA_AVAILABLE:
-            raise HTTPException(status_code=503, detail="Ollama is not available")
-        
-        text = request.text
-        if not text or len(text.strip()) < 50:
-            raise HTTPException(status_code=400, detail="Text is too short to summarize")
-        
-        print(f"📝 Generating summary for text ({len(text)} characters)...")
-        
-        # Truncate text if too long (keep first 4000 chars for context)
-        truncated_text = text[:4000] if len(text) > 4000 else text
-        
-        prompt = f"""Please provide a comprehensive and detailed summary of this research paper. Include:
-
-1. Main topic and research objectives
-2. Key methodology used
-3. Important findings and results
-4. Main contributions
-5. Conclusions
-
-Research Paper Content:
-{truncated_text}
-
-Provide a well-structured, informative summary that captures the essence of the research paper."""
-        
-        payload = {
-            "model": OLLAMA_MODEL,
-            "prompt": prompt,
-            "stream": False,
-            "options": {
-                "temperature": 0.3,
-                "top_p": 0.9,
-                "num_predict": 1000,
-                "repeat_penalty": 1.1
-            }
-        }
-        
-        response = requests.post(f"{OLLAMA_BASE_URL}/api/generate", json=payload, timeout=120)
-        
-        if response.status_code == 200:
-            result = response.json()
-            summary = result.get("response", "").strip()
-            print(f"✅ Summary generated ({len(summary)} characters)")
-            
-            return JSONResponse(content={
-                "success": True,
-                "summary": summary,
-                "model_used": OLLAMA_MODEL,
-                "original_length": len(text),
-                "summary_length": len(summary)
-            })
-        else:
-            print(f"❌ Ollama API error: {response.status_code}")
-            raise HTTPException(status_code=500, detail="Failed to generate summary")
-            
-    except HTTPException:
-        raise
-    except Exception as e:
-        print(f"❌ Summary generation error: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Error generating summary: {str(e)}")
 
 @app.post("/analyze-pdf")
-async def analyze_pdf(file: UploadFile = File(...), question: str = Form(None)):
-    if not pdf_processor:
-        raise HTTPException(status_code=500, detail="PDF processor not available")
-    
-    try:
-        print(f"📄 Processing PDF: {file.filename}")
-        
-        # Save uploaded file
-        file_path = f"data/uploads/{file.filename}"
-        with open(file_path, "wb") as buffer:
-            content = await file.read()
-            buffer.write(content)
-        
-        # Validate PDF file first
-        if not _is_valid_pdf(file_path):
-            try:
-                with open(file_path, "rb") as f:
-                    header = f.read(10)
-                    print(f"File header: {header}")
-            except Exception as e:
-                print(f"File read error: {e}")
+async def analyze_pdf(
+    file: UploadFile = File(...),
+    question: Optional[str] = Form(None),
+    authorization: Optional[str] = Header(None)
+):
+    if not file.filename.endswith(".pdf"):
+        raise HTTPException(400, "Only PDF files accepted")
+
+    content = await file.read()
+    doc_id = str(uuid.uuid4())
+    save_path = Path(UPLOAD_PATH) / f"{doc_id}_{file.filename}"
+    save_path.write_bytes(content)
+
+    # Validate PDF
+    if not _is_valid_pdf(str(save_path)):
+        raise HTTPException(400, "Invalid or corrupted PDF file")
+
+    # Extract text
+    text = pdf_processor.extract_text(str(save_path))
+
+    if not text or len(text.strip()) < 50:
+        raise HTTPException(500, "PDF extraction returned insufficient text")
+
+    print(f"📄 Extracted {len(text)} characters from {file.filename}")
+
+    # Ingest into RAG
+    ingest_result = rag_system.ingest_document(text, doc_id, {"filename": file.filename})
+
+    # Generate summary + keywords via LLM
+    summary_result = rag_system.generate_summary(text)
+    keywords = rag_system.extract_keywords(text)
+
+    # Analyze plagiarism
+    plagiarism_result = rag_system.analyze_plagiarism(text)
+
+    # Optional question
+    answer = None
+    if question and question.strip():
+        answer = rag_system.answer_question(question, doc_id)
+
+    # Save to MongoDB
+    user_email = None
+    if authorization and authorization.startswith("Bearer "):
+        token = authorization.split(" ")[1]
+        try:
+            from app.auth import SECRET_KEY, ALGORITHM
+            payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+            user_email = payload.get("sub")
+        except:
+            pass
             
-            raise HTTPException(status_code=400, detail="Invalid or corrupted PDF file. Please upload a valid PDF.")
-        
-        # Extract text from PDF
-        text_content = pdf_processor.extract_text(file_path)
-        print(f"📊 Extracted {len(text_content)} characters")
-        
-        if not text_content.strip():
-            raise HTTPException(status_code=400, detail="No text content found in PDF. This might be a scanned PDF or image-based PDF.")
-        
-        # Add to RAG system
-        if rag_system:
-            rag_system.add_document(file.filename, text_content)
-        
-        response_data = {
-            "success": True,
+    from app import auth
+    if auth.db is not None:
+        paper_doc = {
+            "doc_id": doc_id,
             "filename": file.filename,
-            "text_length": len(text_content),
-            "extracted_text": text_content
+            "user_email": user_email,
+            "text_length": len(text),
+            "extracted_text": text,
+            "summary": summary_result.get("summary", ""),
+            "keywords": keywords,
+            "rag_stats": ingest_result,
+            "plagiarism": plagiarism_result,
+            "answer": answer,
+            "created_at": datetime.utcnow()
         }
-        
-        # If user asked a question, use Ollama to answer it
-        if question and question.strip():
-            print(f"❓ Answering question with Ollama: {question}")
-            ollama_answer = call_ollama_api(question, text_content, "research_paper")
-            
-            response_data["answer"] = {
-                "answer": ollama_answer,
-                "question": question,
-                "ai_model": OLLAMA_MODEL,
-                "paper_specific": True
-            }
-        
-        return JSONResponse(content=response_data)
-    
-    except HTTPException:
-        raise
-    except Exception as e:
-        print(f"❌ PDF analysis error: {str(e)}")
-        
-        # Provide more specific error messages
-        error_msg = str(e)
-        if "EOF marker not found" in error_msg:
-            error_msg = "The PDF file appears to be corrupted or incomplete. Please check the file and try again."
-        elif "encrypted" in error_msg.lower():
-            error_msg = "The PDF file is encrypted and cannot be read. Please provide an unencrypted PDF."
-        elif "no text content" in error_msg.lower():
-            error_msg = "The PDF file does not contain extractable text. It might be a scanned image PDF."
-        
-        raise HTTPException(status_code=500, detail=f"Error processing PDF: {error_msg}")
+        await auth.db.papers.insert_one(paper_doc)
+
+    return {
+        "success": True,
+        "doc_id": doc_id,
+        "filename": file.filename,
+        "text_length": len(text),
+        "extracted_text": text,
+        "summary": summary_result.get("summary", ""),
+        "keywords": keywords,
+        "rag_stats": ingest_result,
+        "plagiarism": plagiarism_result,
+        "answer": answer
+    }
+
 
 @app.post("/analyze-image")
-async def analyze_image(file: UploadFile = File(...), question: str = Form(None)):
-    if not image_processor:
-        raise HTTPException(status_code=500, detail="Image processor not available")
-    
-    try:
-        print(f"🖼️ Processing image: {file.filename}")
-        
-        # Read the uploaded file
-        content = await file.read()
-        
-        # Convert to base64 for the image processor
-        image_data = base64.b64encode(content).decode('utf-8')
-        
-        # Analyze the image
-        analysis = image_processor.analyze_research_image(image_data)
-        
-        response_data = {
+async def analyze_image(
+    file: UploadFile = File(...),
+    question: Optional[str] = Form(None),
+    authorization: Optional[str] = Header(None)
+):
+    content = await file.read()
+    doc_id = str(uuid.uuid4())
+    save_path = Path(UPLOAD_PATH) / f"{doc_id}_{file.filename}"
+    save_path.write_bytes(content)
+
+    # Use the image processor's OCR
+    import base64
+    image_data = base64.b64encode(content).decode('utf-8')
+    analysis = image_processor.analyze_research_image(image_data)
+
+    text = ""
+    if (analysis.get("ocr_results", {}).get("success") and
+        analysis["ocr_results"].get("extracted_text")):
+        text = analysis["ocr_results"]["extracted_text"]
+
+    if not text or len(text.strip()) < 20:
+        return {
             "success": True,
+            "doc_id": doc_id,
             "filename": file.filename,
+            "text_length": 0,
+            "extracted_text": "",
+            "summary": "Could not extract sufficient text from the image for analysis.",
+            "keywords": [],
+            "rag_stats": {"success": False, "error": "Insufficient text from OCR"},
+            "answer": None,
             "analysis": analysis
         }
-        
-        # If OCR was successful and we have text content
-        if (analysis.get("ocr_results", {}).get("success") and 
-            analysis["ocr_results"].get("extracted_text")):
+
+    ingest_result = rag_system.ingest_document(text, doc_id, {"filename": file.filename})
+    summary_result = rag_system.generate_summary(text)
+    keywords = rag_system.extract_keywords(text)
+    plagiarism_result = rag_system.analyze_plagiarism(text)
+
+    answer = None
+    if question and question.strip():
+        answer = rag_system.answer_question(question, doc_id)
+
+    # Save to MongoDB
+    user_email = None
+    if authorization and authorization.startswith("Bearer "):
+        token = authorization.split(" ")[1]
+        try:
+            from app.auth import SECRET_KEY, ALGORITHM
+            payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+            user_email = payload.get("sub")
+        except:
+            pass
             
-            text_content = analysis["ocr_results"]["extracted_text"]
-            response_data["extracted_text"] = text_content
-            
-            # Add to RAG system
-            if rag_system:
-                rag_system.add_document(file.filename, text_content)
-            
-            # If user asked a question, use Ollama
-            if question:
-                print(f"❓ Answering question from image with Ollama: {question}")
-                ollama_answer = call_ollama_api(question, text_content, "research_image")
-                
-                response_data["answer"] = {
-                    "answer": ollama_answer,
-                    "question": question,
-                    "ai_model": OLLAMA_MODEL,
-                    "paper_specific": True
-                }
-        
-        return JSONResponse(content=response_data)
-        
-    except Exception as e:
-        print(f"❌ Image analysis error: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Error processing image: {str(e)}")
+    from app import auth
+    if auth.db is not None:
+        paper_doc = {
+            "doc_id": doc_id,
+            "filename": file.filename,
+            "user_email": user_email,
+            "text_length": len(text),
+            "extracted_text": text,
+            "summary": summary_result.get("summary", ""),
+            "keywords": keywords,
+            "rag_stats": ingest_result,
+            "plagiarism": plagiarism_result,
+            "answer": answer,
+            "created_at": datetime.utcnow()
+        }
+        await auth.db.papers.insert_one(paper_doc)
+
+    return {
+        "success": True,
+        "doc_id": doc_id,
+        "filename": file.filename,
+        "text_length": len(text),
+        "extracted_text": text,
+        "summary": summary_result.get("summary", ""),
+        "keywords": keywords,
+        "rag_stats": ingest_result,
+        "plagiarism": plagiarism_result,
+        "answer": answer,
+        "analysis": analysis
+    }
+
 
 @app.post("/ask-question")
 async def ask_question(question: str = Form(...)):
-    """General question answering using Ollama exclusively"""
-    try:
-        if not question.strip():
-            raise HTTPException(status_code=400, detail="Question cannot be empty")
-        
-        print(f"❓ Answering general question with Ollama: {question}")
-        
-        # Use Ollama for all general questions
-        ollama_answer = call_ollama_api(question)
-        
-        return JSONResponse(content={
-            "success": True,
-            "answer": {
-                "answer": ollama_answer,
-                "question": question,
-                "ai_model": OLLAMA_MODEL,
-                "paper_specific": False
-            },
-            "question": question
-        })
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error answering question: {str(e)}")
+    if not question.strip():
+        raise HTTPException(400, "Question cannot be empty")
+    result = rag_system.answer_question(question)
+    return result
+
+
+@app.post("/analyze-plagiarism")
+async def analyze_plagiarism(text: str = Form(...)):
+    if not text.strip():
+        raise HTTPException(400, "Text cannot be empty")
+    result = rag_system.analyze_plagiarism(text)
+    return result
+
 
 @app.get("/documents")
 async def list_documents():
-    if not rag_system:
-        raise HTTPException(status_code=500, detail="RAG system not available")
-    
-    try:
-        documents = rag_system.list_documents()
-        return JSONResponse(content={
-            "success": True,
-            "documents": documents,
-            "count": len(documents)
-        })
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error listing documents: {str(e)}")
+    uploads = Path(UPLOAD_PATH)
+    docs = [
+        {"filename": f.name, "size_kb": round(f.stat().st_size / 1024, 1)}
+        for f in uploads.iterdir() if f.is_file()
+    ]
+    return {"success": True, "documents": docs, "count": len(docs)}
 
-@app.get("/paper-overview")
-async def get_paper_overview():
-    if not rag_system:
-        raise HTTPException(status_code=500, detail="RAG system not available")
-    
-    try:
-        overview = rag_system.get_paper_overview()
-        return JSONResponse(content={
-            "success": True,
-            "overview": overview
-        })
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error getting paper overview: {str(e)}")
+
+@app.delete("/reset")
+async def reset_rag():
+    rag_system.reset_store()
+    return {"success": True, "message": "Vector store cleared"}
+
 
 if __name__ == "__main__":
     import uvicorn
     print("🚀 Starting AI Research Paper Analyzer API...")
-    print("🌐 Server available at: http://localhost:8000")
-    print("📚 API docs at: http://localhost:8000/docs")
-    print("🔍 Check Ollama status at: http://localhost:8000/ollama-status")
-    print("🤖 Primary AI: Ollama (Llama 3)")
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    print("🌐 Server: http://localhost:8000")
+    print("📚 Docs: http://localhost:8000/docs")
+    uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)

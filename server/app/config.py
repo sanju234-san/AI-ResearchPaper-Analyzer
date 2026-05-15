@@ -1,0 +1,31 @@
+"""
+Centralized configuration for AI Research Paper Analyzer.
+Loads environment variables and defines constants for Groq, LangChain, and FAISS.
+"""
+
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+# --- Groq API ---
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+GROQ_MODEL = "llama-3.3-70b-versatile"          # primary model
+GROQ_FAST_MODEL = "llama-3.1-8b-instant"      # for quick classification tasks
+
+# --- Embeddings ---
+EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
+
+# --- Chunking ---
+CHUNK_SIZE = 800
+CHUNK_OVERLAP = 150
+
+# --- Retrieval ---
+RETRIEVAL_K = 5
+
+# --- Paths ---
+VECTOR_STORE_PATH = "data/vector_store"
+UPLOAD_PATH = "data/uploads"
+
+# --- Limits ---
+MAX_FILE_SIZE_MB = 20

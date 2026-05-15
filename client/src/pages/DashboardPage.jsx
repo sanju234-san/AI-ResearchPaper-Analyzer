@@ -1,220 +1,260 @@
-// client/src/pages/DashboardPage.jsx
 import React, { useState, useEffect } from 'react';
-import api from '../services/api';
+import { Upload, Search, BookOpen, BarChart3, Settings, LogOut, User, RefreshCw, Database, FileText, BarChart2, ShieldAlert } from 'lucide-react';
+import TechBadge from '../components/TechBadge';
 
-const DashboardPage = ({ onNavigate, onViewAnalysis }) => {
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
+const DashboardPage = ({ onNavigate, onViewAnalysis, userName }) => {
   const [papers, setPapers] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [backendDocs, setBackendDocs] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [source, setSource] = useState('local'); // 'local' or 'mongodb'
+  const [fetchError, setFetchError] = useState(null);
+
+  const fetchFromMongoDB = async () => {
+    const token = localStorage.getItem('auth_token');
+    if (!token) return null;
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/auth/papers`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      if (!res.ok) return null;
+      const data = await res.json();
+      if (data.success && data.papers) {
+        return data.papers.map(p => ({
+          id: p.id || p.doc_id,
+          doc_id: p.doc_id,
+          title: p.filename ? p.filename.replace(/\.[^/.]+$/, "") : 'Untitled',
+          filename: p.filename,
+          authors: p.user_email || 'Unknown',
+          dateUploaded: p.created_at ? new Date(p.created_at).toLocaleDateString() : 'Unknown',
+          status: 'Completed',
+          textLength: p.text_length || 0,
+          extractedText: p.extracted_text || '',
+          summary: p.summary || '',
+          keywords: p.keywords || [],
+          ragStats: p.rag_stats || {},
+          plagiarism: p.plagiarism || null,
+          answer: p.answer || null,
+        }));
+      }
+    } catch (err) {
+      console.error('Failed to fetch papers from MongoDB:', err);
+      setFetchError('Could not connect to database');
+    }
+    return null;
+  };
 
   useEffect(() => {
+    const loadPapers = async () => {
+      setLoading(true);
+      setFetchError(null);
+
+      // Try MongoDB first
+      const mongoPapers = await fetchFromMongoDB();
+      if (mongoPapers && mongoPapers.length > 0) {
+        setPapers(mongoPapers);
+        setSource('mongodb');
+      } else {
+        // Fall back to localStorage
+        const localPapers = JSON.parse(localStorage.getItem('papers') || '[]');
+        setPapers(localPapers);
+        setSource('local');
+      }
+      setLoading(false);
+    };
     loadPapers();
-    loadBackendDocuments();
   }, []);
 
-  const loadPapers = () => {
-    // Load papers from localStorage
-    const storedPapers = JSON.parse(localStorage.getItem('papers') || '[]');
-    setPapers(storedPapers);
+  const handleRefresh = async () => {
+    setLoading(true);
+    setFetchError(null);
+    const mongoPapers = await fetchFromMongoDB();
+    if (mongoPapers && mongoPapers.length > 0) {
+      setPapers(mongoPapers);
+      setSource('mongodb');
+    } else {
+      const localPapers = JSON.parse(localStorage.getItem('papers') || '[]');
+      setPapers(localPapers);
+      setSource('local');
+    }
     setLoading(false);
   };
 
-  const loadBackendDocuments = async () => {
-    try {
-      const response = await api.listDocuments();
-      if (response.success) {
-        setBackendDocs(response.documents || []);
-      }
-    } catch (error) {
-      console.error('Failed to load backend documents:', error);
-    }
-  };
-
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'Completed':
-        return 'bg-green-100 text-green-800';
-      case 'Pending':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'In Progress':
-        return 'bg-blue-100 text-blue-800';
-      case 'Error':
-        return 'bg-red-100 text-red-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  };
-
   const handleDelete = (id) => {
-    const updatedPapers = papers.filter(paper => paper.id !== id);
-    setPapers(updatedPapers);
-    localStorage.setItem('papers', JSON.stringify(updatedPapers));
+    if (source === 'local') {
+      const updated = papers.filter(p => p.id !== id);
+      setPapers(updated);
+      localStorage.setItem('papers', JSON.stringify(updated));
+    }
   };
 
-  const filteredPapers = papers.filter(paper =>
-    paper.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    paper.authors.toLowerCase().includes(searchTerm.toLowerCase())
+  const filtered = papers.filter(p =>
+    (p.title || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (p.authors || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (p.filename || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const totalWords = papers.reduce((s, p) => s + (p.extractedText ? p.extractedText.split(/\s+/).length : Math.round((p.textLength || 0) / 5)), 0);
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-primary flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading papers...</p>
+          <div className="w-8 h-8 border-2 border-mint/30 border-t-mint rounded-full animate-spin mx-auto mb-3" />
+          <p className="text-gray-500 text-sm">Loading papers...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className="min-h-screen bg-primary flex">
       {/* Sidebar */}
-      <aside className="w-64 bg-white border-r border-gray-200 flex flex-col">
-        <div className="p-6 border-b border-gray-200">
-          <h1 className="text-2xl font-bold text-gray-900">Paperlytics</h1>
+      <aside className="w-60 bg-[#0d0d0d] border-r border-white/5 flex flex-col">
+        <div className="p-5 border-b border-white/5">
+          <button onClick={() => onNavigate('home')} className="flex items-center gap-2">
+            <div className="w-8 h-8 bg-mint/10 border border-mint/30 rounded-lg flex items-center justify-center">
+              <BookOpen className="w-4 h-4 text-mint" />
+            </div>
+            <span className="font-display text-lg font-bold text-white">Paperlytics</span>
+          </button>
         </div>
 
-        <nav className="flex-1 p-4">
-          <button className="w-full flex items-center gap-3 px-4 py-3 bg-blue-50 text-blue-600 rounded-lg mb-2">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-            </svg>
-            Dashboard
+        <nav className="flex-1 p-3 space-y-1">
+          <button className="w-full flex items-center gap-3 px-4 py-2.5 bg-mint/10 text-mint rounded-lg text-sm border-l-2 border-mint">
+            <BarChart3 className="w-4 h-4" /> Dashboard
           </button>
-
-          <button className="w-full flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-gray-50 rounded-lg mb-2">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-            </svg>
-            My Profile
+          <button onClick={() => onNavigate('upload')} className="w-full flex items-center gap-3 px-4 py-2.5 text-gray-500 hover:text-gray-300 hover:bg-white/5 rounded-lg text-sm transition-all">
+            <Upload className="w-4 h-4" /> Upload
           </button>
-
-          <button className="w-full flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-gray-50 rounded-lg">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-            Settings
+          <button onClick={() => onNavigate('settings')} className="w-full flex items-center gap-3 px-4 py-2.5 text-gray-500 hover:text-gray-300 hover:bg-white/5 rounded-lg text-sm transition-all">
+            <Settings className="w-4 h-4" /> Settings
           </button>
         </nav>
 
-        <button 
-          onClick={() => onNavigate('home')}
-          className="flex items-center gap-3 px-8 py-4 text-gray-700 hover:bg-gray-50 border-t border-gray-200"
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-          </svg>
-          Logout
-        </button>
+        <div className="p-3 border-t border-white/5">
+          <div className="px-3 py-2 mb-2">
+            <TechBadge label="Powered by AI" color="mint" />
+          </div>
+          <button onClick={() => onNavigate('logout')} className="w-full flex items-center gap-3 px-4 py-2.5 text-gray-500 hover:text-red-400 hover:bg-white/5 rounded-lg text-sm transition-all">
+            <LogOut className="w-4 h-4" /> Logout
+          </button>
+        </div>
       </aside>
 
-      {/* Main Content */}
-      <main className="flex-1 p-8">
-        <div className="max-w-7xl mx-auto">
+      {/* Main */}
+      <main className="flex-1 p-8 overflow-y-auto">
+        <div className="max-w-6xl mx-auto">
           {/* Header */}
-          <div className="flex justify-between items-center mb-8">
+          <div className="flex justify-between items-start mb-8">
             <div>
-              <h1 className="text-4xl font-bold text-gray-900 mb-2">My Research Papers</h1>
-              <p className="text-gray-600">
-                {papers.length} paper{papers.length !== 1 ? 's' : ''} analyzed
-                {backendDocs.length > 0 && ` • ${backendDocs.length} in backend`}
-              </p>
+              <h1 className="font-display text-3xl font-bold text-white mb-1">My Research Papers</h1>
+              <div className="flex items-center gap-3">
+                <p className="text-gray-500 text-sm">{papers.length} paper{papers.length !== 1 ? 's' : ''} analyzed</p>
+                <span className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-white/5 border border-white/10">
+                  <Database className="w-3 h-3" />
+                  <span className={source === 'mongodb' ? 'text-mint' : 'text-amber'}>{source === 'mongodb' ? 'MongoDB' : 'Local'}</span>
+                </span>
+              </div>
             </div>
-            <div className="flex items-center gap-4">
-              <span className="text-gray-700">John Doe</span>
-              <div className="w-10 h-10 bg-orange-300 rounded-full"></div>
+            <div className="flex items-center gap-3">
+              <button onClick={handleRefresh} className="p-2 text-gray-500 hover:text-mint hover:bg-white/5 rounded-lg transition-all" title="Refresh">
+                <RefreshCw className="w-4 h-4" />
+              </button>
+              <span className="text-sm text-gray-400">{userName || 'Guest'}</span>
+              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-mint/30 to-purple/30 border border-white/10 flex items-center justify-center text-sm font-semibold text-white">
+                {(userName || 'G').charAt(0).toUpperCase()}
+              </div>
             </div>
           </div>
 
-          {/* Search and Upload */}
-          <div className="flex gap-4 mb-6">
-            <div className="flex-1 relative">
-              <svg className="w-5 h-5 absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-              <input
-                type="text"
-                placeholder="Search by title, author, or keyword..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
+          {fetchError && (
+            <div className="mb-4 p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg text-amber-400 text-sm">
+              ⚠️ {fetchError} — showing locally cached papers
             </div>
-            <button 
-              onClick={() => onNavigate('upload')}
-              className="flex items-center gap-2 bg-blue-500 text-white px-6 py-3 rounded-lg hover:bg-blue-600"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-              </svg>
-              Upload New Paper
+          )}
+
+          {/* Stats */}
+          <div className="grid grid-cols-3 gap-4 mb-6">
+            {[
+              ['Total Papers', papers.length, <FileText className="w-5 h-5 text-mint" />],
+              ['Words Analyzed', totalWords.toLocaleString(), <BarChart2 className="w-5 h-5 text-amber" />],
+              ['Avg Similarity', papers.length > 0 ? `${papers.reduce((s, p) => s + (p.plagiarism?.score || 0), 0) / papers.length || 0}%` : '0%', <ShieldAlert className="w-5 h-5 text-purple" />],
+            ].map(([label, val, icon]) => (
+              <div key={label} className="glass-card p-4">
+                <div className="flex items-center gap-2 mb-1">
+                  <div className="flex items-center justify-center p-1.5 rounded-lg bg-white/5 border border-white/10">
+                    {icon}
+                  </div>
+                  <span className="text-xs text-gray-500 font-medium">{label}</span>
+                </div>
+                <div className="text-xl font-mono font-bold text-white">{val}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Search + Upload */}
+          <div className="flex gap-3 mb-6">
+            <div className="flex-1 relative">
+              <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-gray-600" />
+              <input type="text" placeholder="Search papers..." value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-11 pr-4 py-3 bg-secondary border border-white/10 rounded-xl text-white placeholder-gray-600 text-sm focus:outline-none focus:border-mint focus:ring-1 focus:ring-mint/30 transition-all" />
+            </div>
+            <button onClick={() => onNavigate('upload')}
+              className="bg-mint text-black px-5 py-3 rounded-xl text-sm font-semibold hover:bg-mint-dim transition-all flex items-center gap-2 mint-glow-hover">
+              <Upload className="w-4 h-4" /> Upload New
             </button>
           </div>
 
-          {/* Papers Table */}
-          {filteredPapers.length === 0 ? (
-            <div className="bg-white rounded-lg shadow p-12 text-center">
-              <svg className="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">No papers found</h3>
-              <p className="text-gray-600 mb-4">
-                {searchTerm ? 'Try a different search term' : 'Upload your first research paper to get started'}
-              </p>
+          {/* Table */}
+          {filtered.length === 0 ? (
+            <div className="glass-card p-16 text-center">
+              <BookOpen className="w-12 h-12 text-gray-700 mx-auto mb-3" />
+              <h3 className="text-lg font-semibold text-white mb-1">No papers found</h3>
+              <p className="text-gray-500 text-sm mb-4">{searchTerm ? 'Try a different search' : 'Upload your first paper'}</p>
               {!searchTerm && (
-                <button 
-                  onClick={() => onNavigate('upload')}
-                  className="bg-blue-500 text-white px-6 py-3 rounded-lg hover:bg-blue-600"
-                >
+                <button onClick={() => onNavigate('upload')} className="bg-mint text-black px-5 py-2.5 rounded-lg text-sm font-semibold hover:bg-mint-dim transition-all">
                   Upload Paper
                 </button>
               )}
             </div>
           ) : (
-            <div className="bg-white rounded-lg shadow">
+            <div className="bg-secondary rounded-2xl overflow-hidden border border-white/5">
               <table className="w-full">
-                <thead className="border-b border-gray-200">
-                  <tr>
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Paper Title</th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Authors</th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Date Uploaded</th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Status</th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Actions</th>
+                <thead>
+                  <tr className="bg-[#0d0d0d]">
+                    {['Paper Title', 'Date', 'Plagiarism', 'Status', 'Actions'].map(h => (
+                      <th key={h} className="px-6 py-3 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider font-body">{h}</th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredPapers.map((paper) => (
-                    <tr key={paper.id} className="border-b hover:bg-gray-50">
+                  {filtered.map((paper) => (
+                    <tr key={paper.id || paper.doc_id} className="border-b border-white/5 hover:bg-white/[0.02] transition-colors">
                       <td className="px-6 py-4">
-                        <div className="font-medium text-gray-900">{paper.title}</div>
-                        {paper.filename && (
-                          <div className="text-sm text-gray-500">{paper.filename}</div>
+                        <div className="text-sm font-medium text-white">{paper.title}</div>
+                        {paper.filename && <div className="text-xs text-gray-600 font-mono mt-0.5">{paper.filename}</div>}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-400">{paper.dateUploaded}</td>
+                      <td className="px-6 py-4">
+                        {paper.plagiarism?.score != null ? (
+                          <span className={`text-sm font-mono ${paper.plagiarism.score > 50 ? 'text-red-400' : paper.plagiarism.score > 25 ? 'text-amber' : 'text-mint'}`}>
+                            {paper.plagiarism.score}%
+                          </span>
+                        ) : (
+                          <span className="text-xs text-gray-600">N/A</span>
                         )}
                       </td>
-                      <td className="px-6 py-4 text-gray-700">{paper.authors}</td>
-                      <td className="px-6 py-4 text-gray-700">{paper.dateUploaded}</td>
+                      <td className="px-6 py-4"><TechBadge label={paper.status || 'Completed'} color="mint" /></td>
                       <td className="px-6 py-4">
-                        <span className={`inline-flex items-center px-2 py-1 text-xs font-medium rounded ${getStatusColor(paper.status)}`}>
-                          {paper.status}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => onViewAnalysis && onViewAnalysis(paper)}
-                            className="text-blue-600 hover:underline"
-                          >
-                            View
-                          </button>
-                          <button
-                            onClick={() => handleDelete(paper.id)}
-                            className="text-red-600 hover:underline"
-                          >
-                            Delete
-                          </button>
+                        <div className="flex items-center gap-3">
+                          <button onClick={() => onViewAnalysis?.(paper)} className="text-mint text-sm hover:text-mint-dim transition-colors">View</button>
+                          {source === 'local' && (
+                            <button onClick={() => handleDelete(paper.id)} className="text-red-400/70 text-sm hover:text-red-400 transition-colors">Delete</button>
+                          )}
                         </div>
                       </td>
                     </tr>
