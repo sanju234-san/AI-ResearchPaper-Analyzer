@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import NavBar from '../components/NavBar';
-import TechBadge from '../components/TechBadge';
+import NavBar from '../Components/NavBar';
+import TechBadge from '../Components/TechBadge';
 import { Search, FileText, Tags, Bot } from 'lucide-react';
 import { motion, useAnimation, useInView } from 'framer-motion';
 import { useRef } from 'react';

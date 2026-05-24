@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { Download, Share2, ChevronDown, ChevronUp, Search, BookOpen, Clock, AlignLeft, Layers, Tags, Brain, SearchCode, Ruler } from 'lucide-react';
-import NavBar from '../components/NavBar';
+import NavBar from '../Components/NavBar';
 import { motion } from 'framer-motion';
-import TechBadge from '../components/TechBadge';
+import TechBadge from '../Components/TechBadge';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
