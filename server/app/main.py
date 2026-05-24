@@ -19,8 +19,9 @@ import jwt
 from app.pdf_processor import PDFProcessor
 from app.image_processor import ImageProcessor
 from app.rag_system import rag_system
-from app.config import UPLOAD_PATH
+from app.config import UPLOAD_PATH, CLOUDINARY_FOLDER
 from app.auth import router as auth_router
+from app.cloudinary_service import upload_to_cloudinary, download_from_cloudinary
 
 # --- Lifespan: Startup/Shutdown for MongoDB ---
 @asynccontextmanager
@@ -122,15 +123,28 @@ async def analyze_pdf(
 
     # Validate PDF
     if not _is_valid_pdf(str(save_path)):
+        save_path.unlink(missing_ok=True)
         raise HTTPException(400, "Invalid or corrupted PDF file")
 
-    # Extract text
+    # Extract text (requires local file)
     text = pdf_processor.extract_text(str(save_path))
 
     if not text or len(text.strip()) < 50:
+        save_path.unlink(missing_ok=True)
         raise HTTPException(500, "PDF extraction returned insufficient text")
 
     print(f"📄 Extracted {len(text)} characters from {file.filename}")
+
+    # Upload to Cloudinary (reset UploadFile position first)
+    await file.seek(0)
+    cloud_result = await upload_to_cloudinary(
+        file, folder=f"{CLOUDINARY_FOLDER}/papers"
+    )
+    cloudinary_url = cloud_result["secure_url"]
+    cloudinary_public_id = cloud_result["public_id"]
+
+    # Remove temporary local file — Cloudinary is now the source of truth
+    save_path.unlink(missing_ok=True)
 
     # Ingest into RAG
     ingest_result = rag_system.ingest_document(text, doc_id, {"filename": file.filename})
@@ -164,6 +178,8 @@ async def analyze_pdf(
             "doc_id": doc_id,
             "filename": file.filename,
             "user_email": user_email,
+            "cloudinary_url": cloudinary_url,
+            "cloudinary_public_id": cloudinary_public_id,
             "text_length": len(text),
             "extracted_text": text,
             "summary": summary_result,
@@ -179,6 +195,7 @@ async def analyze_pdf(
         "success": True,
         "doc_id": doc_id,
         "filename": file.filename,
+        "cloudinary_url": cloudinary_url,
         "text_length": len(text),
         "extracted_text": text,
         "summary": summary_result,
@@ -205,16 +222,56 @@ async def analyze_image(
     image_data = base64.b64encode(content).decode('utf-8')
     analysis = image_processor.analyze_research_image(image_data)
 
+    # Upload to Cloudinary (reset UploadFile position first)
+    await file.seek(0)
+    cloud_result = await upload_to_cloudinary(
+        file, folder=f"{CLOUDINARY_FOLDER}/images"
+    )
+    cloudinary_url = cloud_result["secure_url"]
+    cloudinary_public_id = cloud_result["public_id"]
+
+    # Remove temporary local file
+    save_path.unlink(missing_ok=True)
+
     text = ""
     if (analysis.get("ocr_results", {}).get("success") and
         analysis["ocr_results"].get("extracted_text")):
         text = analysis["ocr_results"]["extracted_text"]
 
     if not text or len(text.strip()) < 20:
+        # Still store the Cloudinary URL even if OCR failed
+        from app import auth
+        user_email = None
+        if authorization and authorization.startswith("Bearer "):
+            token = authorization.split(" ")[1]
+            try:
+                from app.auth import SECRET_KEY, ALGORITHM
+                payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+                user_email = payload.get("sub")
+            except:
+                pass
+        if auth.db is not None:
+            paper_doc = {
+                "doc_id": doc_id,
+                "filename": file.filename,
+                "user_email": user_email,
+                "cloudinary_url": cloudinary_url,
+                "cloudinary_public_id": cloudinary_public_id,
+                "text_length": 0,
+                "extracted_text": "",
+                "summary": "Could not extract sufficient text from the image for analysis.",
+                "keywords": [],
+                "rag_stats": {"success": False, "error": "Insufficient text from OCR"},
+                "answer": None,
+                "created_at": datetime.utcnow()
+            }
+            await auth.db.papers.insert_one(paper_doc)
+
         return {
             "success": True,
             "doc_id": doc_id,
             "filename": file.filename,
+            "cloudinary_url": cloudinary_url,
             "text_length": 0,
             "extracted_text": "",
             "summary": "Could not extract sufficient text from the image for analysis.",
@@ -250,6 +307,8 @@ async def analyze_image(
             "doc_id": doc_id,
             "filename": file.filename,
             "user_email": user_email,
+            "cloudinary_url": cloudinary_url,
+            "cloudinary_public_id": cloudinary_public_id,
             "text_length": len(text),
             "extracted_text": text,
             "summary": summary_result,
@@ -265,6 +324,7 @@ async def analyze_image(
         "success": True,
         "doc_id": doc_id,
         "filename": file.filename,
+        "cloudinary_url": cloudinary_url,
         "text_length": len(text),
         "extracted_text": text,
         "summary": summary_result,
@@ -294,6 +354,21 @@ async def analyze_plagiarism(text: str = Form(...)):
 
 @app.get("/documents")
 async def list_documents():
+    """List uploaded documents from MongoDB (files are stored in Cloudinary)."""
+    from app import auth
+    if auth.db is not None:
+        cursor = auth.db.papers.find(
+            {}, {"doc_id": 1, "filename": 1, "cloudinary_url": 1,
+                 "text_length": 1, "created_at": 1, "_id": 0}
+        ).sort("created_at", -1)
+        docs = await cursor.to_list(length=200)
+        # Serialize datetime for JSON
+        for doc in docs:
+            if doc.get("created_at"):
+                doc["created_at"] = doc["created_at"].isoformat()
+        return {"success": True, "documents": docs, "count": len(docs)}
+
+    # Fallback to local listing if MongoDB is not available
     uploads = Path(UPLOAD_PATH)
     docs = [
         {"filename": f.name, "size_kb": round(f.stat().st_size / 1024, 1)}

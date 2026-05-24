@@ -165,6 +165,8 @@ async def get_papers(authorization: str = Header(None)):
             "doc_id": paper.get("doc_id", ""),
             "filename": paper.get("filename", ""),
             "user_email": paper.get("user_email", ""),
+            "cloudinary_url": paper.get("cloudinary_url", ""),
+            "cloudinary_public_id": paper.get("cloudinary_public_id", ""),
             "text_length": paper.get("text_length", 0),
             "extracted_text": paper.get("extracted_text", ""),
             "summary": paper.get("summary", ""),
@@ -177,3 +179,47 @@ async def get_papers(authorization: str = Header(None)):
 
     return {"success": True, "papers": papers, "count": len(papers)}
 
+
+@router.delete("/papers/{doc_id}")
+async def delete_paper(doc_id: str, authorization: str = Header(None)):
+    """Delete a paper from MongoDB and remove its file from Cloudinary."""
+    if db is None:
+        raise HTTPException(status_code=503, detail="Database not configured")
+
+    # Authenticate
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    token = authorization.split(" ")[1]
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        user_email = payload.get("sub")
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token expired")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+    if not user_email:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    # Find the paper (must belong to the authenticated user)
+    paper = await db.papers.find_one({"doc_id": doc_id, "user_email": user_email})
+    if not paper:
+        raise HTTPException(status_code=404, detail="Paper not found")
+
+    # Delete from Cloudinary if a public_id exists
+    cloudinary_public_id = paper.get("cloudinary_public_id")
+    if cloudinary_public_id:
+        from app.cloudinary_service import delete_from_cloudinary
+
+        # Determine resource_type from filename
+        filename = paper.get("filename", "")
+        resource_type = "image" if filename.lower().split(".")[-1] in (
+            "png", "jpg", "jpeg", "bmp", "tiff", "webp", "gif"
+        ) else "raw"
+        await delete_from_cloudinary(cloudinary_public_id, resource_type=resource_type)
+
+    # Delete from MongoDB
+    await db.papers.delete_one({"_id": paper["_id"]})
+
+    return {"success": True, "message": f"Paper '{paper.get('filename', doc_id)}' deleted"}
