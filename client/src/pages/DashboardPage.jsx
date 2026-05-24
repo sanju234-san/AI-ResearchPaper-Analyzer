@@ -4,7 +4,10 @@ import { motion } from 'framer-motion';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import TechBadge from '../components/TechBadge';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 
+  (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+    ? 'http://localhost:8000'
+    : 'https://paperlytics.onrender.com');
 
 const DashboardPage = ({ onNavigate, onViewAnalysis, userName }) => {
   const [papers, setPapers] = useState([]);
