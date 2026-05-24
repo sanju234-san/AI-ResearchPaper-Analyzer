@@ -85,10 +85,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:5173",
-        "http://localhost:3000",
-        "http://127.0.0.1:5173",
-        "http://127.0.0.1:3000",
-        "https://paperlytics-xi.vercel.app",
+        "https://paperlytics-xi.vercel.app"
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -111,13 +108,8 @@ print("🚀 AI Research Paper Analyzer v2.0.0 (memory-optimized)")
 # ---------------------------------------------------------------------------
 
 @app.get("/health")
-async def health():
-    return {
-        "status": "healthy",
-        "llm": "groq/llama3-70b-8192",
-        "rag": "langchain+faiss",
-        "version": "2.0.0"
-    }
+def health():
+    return {"status": "ok"}
 
 
 @app.get("/")
