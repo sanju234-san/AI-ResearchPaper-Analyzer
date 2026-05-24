@@ -2,15 +2,14 @@
 Cloudinary cloud storage service for Paperlytics.
 Provides async upload, download, and delete utilities.
 Uses a singleton configuration pattern consistent with rag_system.py.
+
+Memory-optimized: cloudinary and httpx are lazy-imported on first use.
 """
 
 import asyncio
 import mimetypes
 from typing import Optional
 
-import cloudinary
-import cloudinary.uploader
-import httpx
 from fastapi import HTTPException, UploadFile
 
 from app.config import (
@@ -38,6 +37,7 @@ def _ensure_configured() -> None:
             "CLOUDINARY_API_SECRET in your .env file."
         )
 
+    import cloudinary  # Lazy import
     cloudinary.config(
         cloud_name=CLOUDINARY_CLOUD_NAME,
         api_key=CLOUDINARY_API_KEY,
@@ -82,6 +82,8 @@ async def upload_to_cloudinary(
         HTTPException 500 on upload failure.
     """
     _ensure_configured()
+
+    import cloudinary.uploader  # Lazy import
 
     target_folder = folder or CLOUDINARY_FOLDER
     resource_type = _detect_resource_type(file.filename)
@@ -134,6 +136,8 @@ async def delete_from_cloudinary(
     """
     _ensure_configured()
 
+    import cloudinary.uploader  # Lazy import
+
     try:
         result = await asyncio.to_thread(
             cloudinary.uploader.destroy,
@@ -166,18 +170,14 @@ async def download_from_cloudinary(url: str) -> bytes:
     Raises:
         HTTPException 502 on download failure.
     """
+    import httpx  # Lazy import
+
     try:
         async with httpx.AsyncClient(timeout=60.0) as client:
             response = await client.get(url)
             response.raise_for_status()
             return response.content
 
-    except httpx.HTTPStatusError as exc:
-        print(f"❌ Cloudinary download failed ({exc.response.status_code}): {url}")
-        raise HTTPException(
-            status_code=502,
-            detail=f"Failed to download file from cloud storage (HTTP {exc.response.status_code})",
-        )
     except Exception as exc:
         print(f"❌ Cloudinary download error: {exc}")
         raise HTTPException(

@@ -1,6 +1,8 @@
 """
 LangChain RAG pipeline for AI Research Paper Analyzer.
-Uses Groq (Llama 3 70B) as LLM and HuggingFace embeddings with FAISS vector store.
+Uses Groq (Llama 3 70B) as LLM and HuggingFace Inference API embeddings with FAISS.
+
+Memory-optimized: all heavy imports are lazy-loaded on first use.
 """
 
 import os
@@ -10,98 +12,192 @@ import shutil
 from pathlib import Path
 from typing import Optional, List, Dict, Any
 
-from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_community.vectorstores import FAISS
-from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_groq import ChatGroq
-from langchain_core.runnables import RunnablePassthrough
-from langchain_core.output_parsers import StrOutputParser
-from langchain_core.prompts import PromptTemplate
-from langchain_core.documents import Document
-
+from langchain_core.embeddings import Embeddings
 from app.config import (
-    GROQ_API_KEY, GROQ_MODEL, EMBEDDING_MODEL,
+    GROQ_API_KEY, GROQ_MODEL, EMBEDDING_MODEL, HF_TOKEN,
     CHUNK_SIZE, CHUNK_OVERLAP, RETRIEVAL_K,
     VECTOR_STORE_PATH
 )
 
 
-# --- Singleton embeddings (load once) ---
+# ---------------------------------------------------------------------------
+# Lazy-loaded singletons — nothing heavy loads until first call
+# ---------------------------------------------------------------------------
+
+class ResilientHuggingFaceEmbeddings(Embeddings):
+    """
+    Wrapper that uses HuggingFace Inference API for embeddings (lightweight, no local model).
+    Falls back to local sentence-transformers only during local dev if network is unavailable.
+    Uses the modern HuggingFaceEndpointEmbeddings (router.huggingface.co) instead of the
+    deprecated HuggingFaceInferenceAPIEmbeddings (api-inference.huggingface.co).
+    """
+
+    def __init__(self, api_key: str, model_name: str):
+        self.api_key = api_key
+        self.model_name = model_name
+        self._api_embeddings = None
+        self._local_embeddings = None
+        self._mode = "api"
+        
+        # Check if local mode is forced by env variable
+        force_mode = os.getenv("EMBEDDINGS_MODE", "").lower()
+        if force_mode == "local" and not os.getenv("RENDER"):
+            self._mode = "local"
+            print("🔌 Forced EMBEDDINGS_MODE=local from environment settings.")
+
+    def _get_api_embeddings(self):
+        if self._api_embeddings is None:
+            from langchain_huggingface import HuggingFaceEndpointEmbeddings
+            self._api_embeddings = HuggingFaceEndpointEmbeddings(
+                model=self.model_name,
+                huggingfacehub_api_token=self.api_key,
+            )
+            print("✅ HuggingFace Endpoint Embeddings ready (via router.huggingface.co)")
+        return self._api_embeddings
+
+    def _get_local_embeddings(self):
+        if self._local_embeddings is None:
+            try:
+                from langchain_huggingface import HuggingFaceEmbeddings
+                print("⏳ Loading local HuggingFaceEmbeddings (takes a few seconds)...")
+                self._local_embeddings = HuggingFaceEmbeddings(model_name=self.model_name)
+                print("✅ Local HuggingFaceEmbeddings successfully loaded!")
+            except ImportError:
+                raise RuntimeError(
+                    "Local embedding dependencies are missing. "
+                    "Please run 'pip install sentence-transformers langchain-huggingface' "
+                    "to use the offline fallback mode."
+                )
+        return self._local_embeddings
+
+    def embed_documents(self, texts: List[str]) -> List[List[float]]:
+        if self._mode == "api":
+            try:
+                return self._get_api_embeddings().embed_documents(texts)
+            except Exception as e:
+                err_str = str(e)
+                if any(x in err_str for x in ["Failed to resolve", "getaddrinfo failed", "ConnectionError", "MaxRetryError"]):
+                    if os.getenv("RENDER"):
+                        print(f"❌ API connection failed on Render: {e}")
+                        raise e
+                    print(f"⚠️ Network error during embedding ({e}). Falling back to local offline embeddings...")
+                    self._mode = "local"
+                else:
+                    raise e
+                    
+        return self._get_local_embeddings().embed_documents(texts)
+
+    def embed_query(self, text: str) -> List[float]:
+        if self._mode == "api":
+            try:
+                return self._get_api_embeddings().embed_query(text)
+            except Exception as e:
+                err_str = str(e)
+                if any(x in err_str for x in ["Failed to resolve", "getaddrinfo failed", "ConnectionError", "MaxRetryError"]):
+                    if os.getenv("RENDER"):
+                        print(f"❌ API connection failed on Render: {e}")
+                        raise e
+                    print(f"⚠️ Network error during embedding ({e}). Falling back to local offline embeddings...")
+                    self._mode = "local"
+                else:
+                    raise e
+                    
+        return self._get_local_embeddings().embed_query(text)
+
+
 _embeddings = None
 
-def get_embeddings() -> HuggingFaceEmbeddings:
-    """Return a cached HuggingFace embedding model."""
+def get_embeddings():
+    """Return a cached resilient embedding wrapper (api with local offline fallback)."""
     global _embeddings
     if _embeddings is None:
-        _embeddings = HuggingFaceEmbeddings(
+        _embeddings = ResilientHuggingFaceEmbeddings(
+            api_key=HF_TOKEN,
             model_name=EMBEDDING_MODEL,
-            model_kwargs={"device": "cpu"},
-            encode_kwargs={"normalize_embeddings": True}
         )
+        print("✅ Resilient HuggingFace Embeddings wrapper initialized")
     return _embeddings
 
 
-# --- Singleton LLM ---
 _llm = None
 
-def get_llm() -> ChatGroq:
+def get_llm():
     """Return a cached ChatGroq LLM instance."""
     global _llm
     if _llm is None:
+        from langchain_groq import ChatGroq
         _llm = ChatGroq(
             groq_api_key=GROQ_API_KEY,
             model_name=GROQ_MODEL,
             temperature=0.1,
             max_tokens=2048,
         )
+        print("✅ Groq LLM ready")
     return _llm
 
 
-# --- Prompts ---
+# ---------------------------------------------------------------------------
+# Lazy prompt templates — built on first access
+# ---------------------------------------------------------------------------
+
 IDENTITY = "You are ResearchLens AI, a specialized research paper analysis assistant. You have deep expertise in Machine Learning, Computer Science, Biomedical Research, Physics, Mathematics, and interdisciplinary fields. You read extracted text from research papers and provide structured, accurate, evidence-grounded analysis. You never hallucinate. You never invent citations, numbers, author names, or findings not present in the provided text. If something is not in the paper you say exactly: This information is not available in the provided paper."
 
-DETAILED_PROMPT = PromptTemplate(
-    input_variables=["context"],
-    template=IDENTITY + "\n\nAnalyze this paper and provide a comprehensive academic breakdown. Start with the research problem being addressed. Describe the methodology including datasets, experimental setup, and evaluation approach. List the three to six most important findings with exact numbers from the paper. State the limitations the authors acknowledge and add one critical observation of your own. Explain why this paper matters to the field and who benefits from it. Use precise academic language. Reference specific sections when possible.\n\nPaper Content:\n{context}"
-)
+_prompts = None
 
-CODE_BASED_PROMPT = PromptTemplate(
-    input_variables=["context"],
-    template=IDENTITY + "\n\nAnalyze this paper from an implementation perspective. Describe the architecture or system design in engineering terms. Extract every hyperparameter, optimizer setting, batch size, learning rate schedule, and loss function mentioned. Describe the data pipeline including preprocessing, augmentation, and splits. Reconstruct algorithms as pseudocode using clear step-by-step notation. List what a developer would need to reproduce this work. Flag anything that is missing and would block reproduction.\n\nPaper Content:\n{context}"
-)
+def _get_prompts():
+    global _prompts
+    if _prompts is None:
+        from langchain_core.prompts import PromptTemplate
+        _prompts = {
+            "detailed": PromptTemplate(
+                input_variables=["context"],
+                template=IDENTITY + "\n\nAnalyze this paper and provide a comprehensive academic breakdown. Start with the research problem being addressed. Describe the methodology including datasets, experimental setup, and evaluation approach. List the three to six most important findings with exact numbers from the paper. State the limitations the authors acknowledge and add one critical observation of your own. Explain why this paper matters to the field and who benefits from it. Use precise academic language. Reference specific sections when possible.\n\nPaper Content:\n{context}"
+            ),
+            "code_based": PromptTemplate(
+                input_variables=["context"],
+                template=IDENTITY + "\n\nAnalyze this paper from an implementation perspective. Describe the architecture or system design in engineering terms. Extract every hyperparameter, optimizer setting, batch size, learning rate schedule, and loss function mentioned. Describe the data pipeline including preprocessing, augmentation, and splits. Reconstruct algorithms as pseudocode using clear step-by-step notation. List what a developer would need to reproduce this work. Flag anything that is missing and would block reproduction.\n\nPaper Content:\n{context}"
+            ),
+            "aspect_oriented": PromptTemplate(
+                input_variables=["context"],
+                template=IDENTITY + "\n\nEvaluate this paper as a peer reviewer. Score each of the following dimensions from one to ten with a one to two sentence justification grounded in evidence from the paper. Score Novelty based on how original the contribution is. Score Technical Rigor based on experimental design and statistical validity. Score Reproducibility based on whether an independent researcher could replicate the results. Score Clarity based on writing quality and logical structure. Score Practical Impact based on real-world applicability. Score Ethical Considerations based on whether harms and biases are addressed. Score Citation Quality based on fairness and completeness of related work. End with an overall verdict of Accept, Minor Revision, Major Revision, or Reject with a two sentence explanation. Close with a three sentence plain-language TL;DR.\n\nPaper Content:\n{context}"
+            ),
+            "qa": PromptTemplate(
+                input_variables=["context", "question"],
+                template=IDENTITY + "\n\nAnswer the following question using only the context provided from the paper. Detect whether the question is conceptual and answer in the Detailed style, implementation-focused and answer in the Code-Based style, or evaluative and answer in the Aspect-Oriented style. Combine styles if the question spans multiple types. Cite the relevant section of the paper for every factual claim.\n\nContext from paper:\n{context}\n\nQuestion: {question}\n\nAnswer:"
+            ),
+        }
+    return _prompts
 
-ASPECT_ORIENTED_PROMPT = PromptTemplate(
-    input_variables=["context"],
-    template=IDENTITY + "\n\nEvaluate this paper as a peer reviewer. Score each of the following dimensions from one to ten with a one to two sentence justification grounded in evidence from the paper. Score Novelty based on how original the contribution is. Score Technical Rigor based on experimental design and statistical validity. Score Reproducibility based on whether an independent researcher could replicate the results. Score Clarity based on writing quality and logical structure. Score Practical Impact based on real-world applicability. Score Ethical Considerations based on whether harms and biases are addressed. Score Citation Quality based on fairness and completeness of related work. End with an overall verdict of Accept, Minor Revision, Major Revision, or Reject with a two sentence explanation. Close with a three sentence plain-language TL;DR.\n\nPaper Content:\n{context}"
-)
 
-QA_PROMPT = PromptTemplate(
-    input_variables=["context", "question"],
-    template=IDENTITY + "\n\nAnswer the following question using only the context provided from the paper. Detect whether the question is conceptual and answer in the Detailed style, implementation-focused and answer in the Code-Based style, or evaluative and answer in the Aspect-Oriented style. Combine styles if the question spans multiple types. Cite the relevant section of the paper for every factual claim.\n\nContext from paper:\n{context}\n\nQuestion: {question}\n\nAnswer:"
-)
-
+# ---------------------------------------------------------------------------
+# RAG System class
+# ---------------------------------------------------------------------------
 
 class LangChainRAGSystem:
     """
     Full LangChain RAG pipeline:
     - RecursiveCharacterTextSplitter for intelligent chunking
-    - HuggingFace sentence-transformers for dense embeddings
+    - HuggingFace Inference API for dense embeddings (zero local GPU/CPU model)
     - FAISS for fast vector similarity search
     - Groq Llama 3 70B for grounded answer generation
     """
 
     def __init__(self):
-        self.vector_store: Optional[FAISS] = None
+        self.vector_store = None
         self.current_doc_id: Optional[str] = None
         self.store_path = Path(VECTOR_STORE_PATH)
         self.store_path.mkdir(parents=True, exist_ok=True)
-        self._load_existing_store()
+        # NOTE: we do NOT call _load_existing_store() at init to avoid
+        # importing FAISS + embeddings at startup.
 
-    def _load_existing_store(self):
-        """Load persisted FAISS index if it exists."""
+    def _ensure_store_loaded(self):
+        """Lazy-load persisted FAISS index on first access."""
+        if self.vector_store is not None:
+            return
         index_file = self.store_path / "index.faiss"
         if index_file.exists():
             try:
+                from langchain_community.vectorstores import FAISS
                 self.vector_store = FAISS.load_local(
                     str(self.store_path),
                     get_embeddings(),
@@ -119,6 +215,10 @@ class LangChainRAGSystem:
         """
         if not text or len(text.strip()) < 50:
             return {"success": False, "error": "Document too short or empty"}
+
+        from langchain_text_splitters import RecursiveCharacterTextSplitter
+        from langchain_core.documents import Document
+        from langchain_community.vectorstores import FAISS
 
         splitter = RecursiveCharacterTextSplitter(
             chunk_size=CHUNK_SIZE,
@@ -140,6 +240,8 @@ class LangChainRAGSystem:
             )
             for i, chunk in enumerate(chunks)
         ]
+
+        self._ensure_store_loaded()
 
         if self.vector_store is None:
             self.vector_store = FAISS.from_documents(docs, get_embeddings())
@@ -163,8 +265,15 @@ class LangChainRAGSystem:
         """
         Retrieve relevant chunks and generate a grounded answer via Groq.
         """
+        self._ensure_store_loaded()
+
         if self.vector_store is None:
             return {"success": False, "answer": "No documents have been ingested yet."}
+
+        from langchain_core.runnables import RunnablePassthrough
+        from langchain_core.output_parsers import StrOutputParser
+
+        prompts = _get_prompts()
 
         retriever = self.vector_store.as_retriever(
             search_type="similarity",
@@ -176,14 +285,14 @@ class LangChainRAGSystem:
 
         rag_chain = (
             {"context": retriever | format_docs, "question": RunnablePassthrough()}
-            | QA_PROMPT
+            | prompts["qa"]
             | get_llm()
             | StrOutputParser()
         )
 
         source_docs = retriever.invoke(question)
         answer = rag_chain.invoke(question)
-        
+
         source_chunks = [doc.page_content[:200] for doc in source_docs]
 
         return {
@@ -198,13 +307,14 @@ class LangChainRAGSystem:
         """Generate structured summary using Groq directly (not RAG)."""
         import asyncio
         llm = get_llm()
+        prompts = _get_prompts()
         # Use first 8000 chars for summary (fits in context)
         truncated = text[:8000]
-        
-        detailed_coro = llm.ainvoke(DETAILED_PROMPT.format(context=truncated))
-        code_based_coro = llm.ainvoke(CODE_BASED_PROMPT.format(context=truncated))
-        aspect_oriented_coro = llm.ainvoke(ASPECT_ORIENTED_PROMPT.format(context=truncated))
-        
+
+        detailed_coro = llm.ainvoke(prompts["detailed"].format(context=truncated))
+        code_based_coro = llm.ainvoke(prompts["code_based"].format(context=truncated))
+        aspect_oriented_coro = llm.ainvoke(prompts["aspect_oriented"].format(context=truncated))
+
         detailed_resp, code_based_resp, aspect_oriented_resp = await asyncio.gather(
             detailed_coro, code_based_coro, aspect_oriented_coro
         )
@@ -250,7 +360,7 @@ Text: {truncated}
                 content = content[7:-3].strip()
             elif content.startswith("```"):
                 content = content[3:-3].strip()
-                
+
             import json
             result = json.loads(content)
             return {"success": True, "score": int(result.get("score", 0)), "reasoning": result.get("reasoning", "")}
@@ -268,5 +378,5 @@ Text: {truncated}
         print("✅ Vector store cleared")
 
 
-# Singleton instance
+# Singleton instance — __init__ does NO heavy work now
 rag_system = LangChainRAGSystem()

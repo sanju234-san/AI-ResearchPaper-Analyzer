@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Upload, Search, BookOpen, BarChart3, Settings, LogOut, User, RefreshCw, Database, FileText, BarChart2, ShieldAlert } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
-import TechBadge from '../Components/TechBadge';
+import TechBadge from '../components/TechBadge';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 

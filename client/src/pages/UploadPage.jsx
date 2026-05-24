@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { Upload } from 'lucide-react';
 import { motion } from 'framer-motion';
-import NavBar from '../Components/NavBar';
-import LoadingOverlay from '../Components/LoadingOverlay';
+import NavBar from '../components/NavBar';
+import LoadingOverlay from '../components/LoadingOverlay';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 

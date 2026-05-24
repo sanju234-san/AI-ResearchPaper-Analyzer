@@ -1,6 +1,8 @@
 """
 AI Research Paper Analyzer — FastAPI Backend
 Powered by LangChain + Groq (Llama 3 70B) + FAISS
+
+Memory-optimized: all heavy imports are lazy-loaded.
 """
 
 import os
@@ -16,24 +18,62 @@ from typing import Optional
 from datetime import datetime
 import jwt
 
-from app.pdf_processor import PDFProcessor
-from app.image_processor import ImageProcessor
-from app.rag_system import rag_system
-from app.config import UPLOAD_PATH, CLOUDINARY_FOLDER
-from app.auth import router as auth_router
-from app.cloudinary_service import upload_to_cloudinary, download_from_cloudinary
 
-# --- Lifespan: Startup/Shutdown for MongoDB ---
+# ---------------------------------------------------------------------------
+# Lazy-loaded heavy modules — NOT imported at module level to save ~300MB RAM
+# ---------------------------------------------------------------------------
+
+_pdf_processor = None
+
+def get_pdf_processor():
+    global _pdf_processor
+    if _pdf_processor is None:
+        from app.pdf_processor import PDFProcessor
+        _pdf_processor = PDFProcessor()
+        print("📄 PDFProcessor loaded")
+    return _pdf_processor
+
+
+_image_processor = None
+
+def get_image_processor():
+    global _image_processor
+    if _image_processor is None:
+        from app.image_processor import ImageProcessor
+        _image_processor = ImageProcessor()
+        print("🖼️ ImageProcessor loaded")
+    return _image_processor
+
+
+_rag = None
+
+def get_rag():
+    global _rag
+    if _rag is None:
+        from app.rag_system import rag_system
+        _rag = rag_system
+        print("🧠 RAG system loaded")
+    return _rag
+
+
+# ---------------------------------------------------------------------------
+# Lifespan: Startup/Shutdown for MongoDB
+# ---------------------------------------------------------------------------
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup
+    # Startup — only connect to MongoDB (lightweight)
     from app import auth as auth_module
     auth_module.connect_db()
     yield
     # Shutdown
     auth_module.disconnect_db()
 
-# --- App Setup ---
+
+# ---------------------------------------------------------------------------
+# App Setup
+# ---------------------------------------------------------------------------
+
 app = FastAPI(
     title="AI Research Paper Analyzer",
     description="RAG-powered paper analysis with Groq Llama 3 + LangChain",
@@ -43,21 +83,41 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000", "http://127.0.0.1:5173", "http://127.0.0.1:3000" , 'https://paperlytics-xi.vercel.app'],
+    allow_origins=[
+        "http://localhost:5173",
+        "http://localhost:3000",
+        "http://127.0.0.1:5173",
+        "http://127.0.0.1:3000",
+        "https://paperlytics-xi.vercel.app",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+# Auth router — lightweight, no heavy deps
+from app.auth import router as auth_router
 app.include_router(auth_router, prefix="/api/auth", tags=["auth"])
 
+# Ensure upload directory exists (lightweight)
+from app.config import UPLOAD_PATH, CLOUDINARY_FOLDER
 Path(UPLOAD_PATH).mkdir(parents=True, exist_ok=True)
-pdf_processor = PDFProcessor()
-image_processor = ImageProcessor()
 
-print("🚀 AI Research Paper Analyzer v2.0.0")
-print("🤖 LLM: Groq Llama 3 70B")
-print("🔗 RAG: LangChain + FAISS")
+print("🚀 AI Research Paper Analyzer v2.0.0 (memory-optimized)")
+
+
+# ---------------------------------------------------------------------------
+# Health check — MUST be first, returns instantly, no heavy imports
+# ---------------------------------------------------------------------------
+
+@app.get("/health")
+async def health():
+    return {
+        "status": "healthy",
+        "llm": "groq/llama3-70b-8192",
+        "rag": "langchain+faiss",
+        "version": "2.0.0"
+    }
 
 
 @app.get("/")
@@ -68,7 +128,7 @@ async def root():
         "stack": {
             "llm": "groq/llama3-70b-8192",
             "rag": "langchain+faiss",
-            "embeddings": "sentence-transformers/all-MiniLM-L6-v2"
+            "embeddings": "HF-inference-api/all-MiniLM-L6-v2"
         },
         "endpoints": {
             "health": "/health",
@@ -81,15 +141,9 @@ async def root():
     }
 
 
-@app.get("/health")
-async def health():
-    return {
-        "status": "healthy",
-        "llm": "groq/llama3-70b-8192",
-        "rag": "langchain+faiss",
-        "version": "2.0.0"
-    }
-
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
 
 def _is_valid_pdf(file_path: str) -> bool:
     """Check if file is a valid PDF"""
@@ -106,6 +160,10 @@ def _is_valid_pdf(file_path: str) -> bool:
     except:
         return False
 
+
+# ---------------------------------------------------------------------------
+# PDF Analysis
+# ---------------------------------------------------------------------------
 
 @app.post("/analyze-pdf")
 async def analyze_pdf(
@@ -126,8 +184,8 @@ async def analyze_pdf(
         save_path.unlink(missing_ok=True)
         raise HTTPException(400, "Invalid or corrupted PDF file")
 
-    # Extract text (requires local file)
-    text = pdf_processor.extract_text(str(save_path))
+    # Extract text (requires local file) — lazy-loads PDFProcessor
+    text = get_pdf_processor().extract_text(str(save_path))
 
     if not text or len(text.strip()) < 50:
         save_path.unlink(missing_ok=True)
@@ -136,6 +194,7 @@ async def analyze_pdf(
     print(f"📄 Extracted {len(text)} characters from {file.filename}")
 
     # Upload to Cloudinary (reset UploadFile position first)
+    from app.cloudinary_service import upload_to_cloudinary
     await file.seek(0)
     cloud_result = await upload_to_cloudinary(
         file, folder=f"{CLOUDINARY_FOLDER}/papers"
@@ -146,20 +205,21 @@ async def analyze_pdf(
     # Remove temporary local file — Cloudinary is now the source of truth
     save_path.unlink(missing_ok=True)
 
-    # Ingest into RAG
-    ingest_result = rag_system.ingest_document(text, doc_id, {"filename": file.filename})
+    # Ingest into RAG — lazy-loads rag_system + embeddings + FAISS
+    rag = get_rag()
+    ingest_result = rag.ingest_document(text, doc_id, {"filename": file.filename})
 
     # Generate summary + keywords via LLM
-    summary_result = await rag_system.generate_summary(text)
-    keywords = rag_system.extract_keywords(text)
+    summary_result = await rag.generate_summary(text)
+    keywords = rag.extract_keywords(text)
 
     # Analyze plagiarism
-    plagiarism_result = rag_system.analyze_plagiarism(text)
+    plagiarism_result = rag.analyze_plagiarism(text)
 
     # Optional question
     answer = None
     if question and question.strip():
-        answer = rag_system.answer_question(question, doc_id)
+        answer = rag.answer_question(question, doc_id)
 
     # Save to MongoDB
     user_email = None
@@ -171,7 +231,7 @@ async def analyze_pdf(
             user_email = payload.get("sub")
         except:
             pass
-            
+
     from app import auth
     if auth.db is not None:
         paper_doc = {
@@ -206,6 +266,10 @@ async def analyze_pdf(
     }
 
 
+# ---------------------------------------------------------------------------
+# Image Analysis
+# ---------------------------------------------------------------------------
+
 @app.post("/analyze-image")
 async def analyze_image(
     file: UploadFile = File(...),
@@ -217,12 +281,13 @@ async def analyze_image(
     save_path = Path(UPLOAD_PATH) / f"{doc_id}_{file.filename}"
     save_path.write_bytes(content)
 
-    # Use the image processor's OCR
+    # Use the image processor's OCR — lazy-loads ImageProcessor
     import base64
     image_data = base64.b64encode(content).decode('utf-8')
-    analysis = image_processor.analyze_research_image(image_data)
+    analysis = get_image_processor().analyze_research_image(image_data)
 
     # Upload to Cloudinary (reset UploadFile position first)
+    from app.cloudinary_service import upload_to_cloudinary
     await file.seek(0)
     cloud_result = await upload_to_cloudinary(
         file, folder=f"{CLOUDINARY_FOLDER}/images"
@@ -281,14 +346,15 @@ async def analyze_image(
             "analysis": analysis
         }
 
-    ingest_result = rag_system.ingest_document(text, doc_id, {"filename": file.filename})
-    summary_result = await rag_system.generate_summary(text)
-    keywords = rag_system.extract_keywords(text)
-    plagiarism_result = rag_system.analyze_plagiarism(text)
+    rag = get_rag()
+    ingest_result = rag.ingest_document(text, doc_id, {"filename": file.filename})
+    summary_result = await rag.generate_summary(text)
+    keywords = rag.extract_keywords(text)
+    plagiarism_result = rag.analyze_plagiarism(text)
 
     answer = None
     if question and question.strip():
-        answer = rag_system.answer_question(question, doc_id)
+        answer = rag.answer_question(question, doc_id)
 
     # Save to MongoDB
     user_email = None
@@ -300,7 +366,7 @@ async def analyze_image(
             user_email = payload.get("sub")
         except:
             pass
-            
+
     from app import auth
     if auth.db is not None:
         paper_doc = {
@@ -336,11 +402,15 @@ async def analyze_image(
     }
 
 
+# ---------------------------------------------------------------------------
+# Q&A and Utilities
+# ---------------------------------------------------------------------------
+
 @app.post("/ask-question")
 async def ask_question(question: str = Form(...)):
     if not question.strip():
         raise HTTPException(400, "Question cannot be empty")
-    result = rag_system.answer_question(question)
+    result = get_rag().answer_question(question)
     return result
 
 
@@ -348,7 +418,7 @@ async def ask_question(question: str = Form(...)):
 async def analyze_plagiarism(text: str = Form(...)):
     if not text.strip():
         raise HTTPException(400, "Text cannot be empty")
-    result = rag_system.analyze_plagiarism(text)
+    result = get_rag().analyze_plagiarism(text)
     return result
 
 
@@ -379,7 +449,7 @@ async def list_documents():
 
 @app.delete("/reset")
 async def reset_rag():
-    rag_system.reset_store()
+    get_rag().reset_store()
     return {"success": True, "message": "Vector store cleared"}
 
 

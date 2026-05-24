@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { User, Settings, Shield, CreditCard, Bell, LogOut, Check } from 'lucide-react';
 import { motion } from 'framer-motion';
-import NavBar from '../Components/NavBar';
+import NavBar from '../components/NavBar';
 
 const SettingsPage = ({ onNavigate, userName }) => {
   const [activeTab, setActiveTab] = useState('profile');
