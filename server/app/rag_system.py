@@ -79,7 +79,8 @@ class ResilientHuggingFaceEmbeddings(Embeddings):
                 if any(x in err_str for x in ["Failed to resolve", "getaddrinfo failed", "ConnectionError", "MaxRetryError"]):
                     if os.getenv("RENDER"):
                         print("❌ API connection failed on Render. Please check your network connection.")
-                        raise e
+                        import logging
+                        logging.error("API connection failed on Render: %s", str(e))
                     print(f"⚠️ Network error during embedding ({e}). Falling back to local offline embeddings...")
                     self._mode = "local"
                 else:
@@ -96,7 +97,8 @@ class ResilientHuggingFaceEmbeddings(Embeddings):
                 if any(x in err_str for x in ["Failed to resolve", "getaddrinfo failed", "ConnectionError", "MaxRetryError"]):
                     if os.getenv("RENDER"):
                         print("❌ API connection failed on Render. Please check your network connection.")
-                        raise e
+                        import logging
+                        logging.error("API connection failed on Render: %s", str(e))
                     print(f"⚠️ Network error during embedding ({e}). Falling back to local offline embeddings...")
                     self._mode = "local"
                 else:
