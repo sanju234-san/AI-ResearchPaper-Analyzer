@@ -21,7 +21,10 @@ with tempfile.NamedTemporaryFile(suffix='.pdf', delete=False) as f:
 headers = {
     "authorization": f"Bearer {token}"
 }
-files = {"file": ("dummy.pdf", open("dummy.pdf", "rb"), "application/pdf")}
+import os
+filename = "dummy.pdf"
+filepath = os.path.join(os.getcwd(), filename)
+files = {"file": (filename, open(filepath, "rb"), "application/pdf")}
 print("Uploading...")
 res = requests.post("http://localhost:8000/analyze-pdf", headers=headers, files=files)
 print(res.status_code)
