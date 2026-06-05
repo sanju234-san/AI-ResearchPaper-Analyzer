@@ -77,7 +77,7 @@ const LoadingOverlay = ({ uploadProgress, fileName }) => {
         {/* Stage indicators */}
         <div className="mt-8 grid grid-cols-4 gap-3">
           {Object.entries(stages).map(([key, s], i) => {
-            const isActive = uploadProgress >= i * 25;
+            const isActive = ['upload', 'extracting', 'analyzing'].indexOf(key) < stages.indexOf([stage]);
             const isCurrent = stage === key;
             return (
               <div key={key} className={`flex flex-col items-center transition-all ${isActive ? 'opacity-100' : 'opacity-30'}`}>
