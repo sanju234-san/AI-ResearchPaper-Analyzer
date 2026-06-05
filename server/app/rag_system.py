@@ -74,7 +74,10 @@ class ResilientHuggingFaceEmbeddings(Embeddings):
         if self._mode == "api":
             try:
                 return self._get_api_embeddings().embed_documents(texts)
-            except Exception as e:
+            except requests.exceptions.ProxyError as e:
+                print(f"⚠️ Proxy error during embedding ({e}).")
+                raise
+            except requests.exceptions.RequestException as e:
                 err_str = str(e)
                 if any(x in err_str for x in ["Failed to resolve", "getaddrinfo failed", "ConnectionError", "MaxRetryError"]):
                     if os.getenv("RENDER"):
@@ -92,7 +95,10 @@ class ResilientHuggingFaceEmbeddings(Embeddings):
         if self._mode == "api":
             try:
                 return self._get_api_embeddings().embed_query(text)
-            except Exception as e:
+            except requests.exceptions.ProxyError as e:
+                print(f"⚠️ Proxy error during embedding ({e}).")
+                raise
+            except requests.exceptions.RequestException as e:
                 err_str = str(e)
                 if any(x in err_str for x in ["Failed to resolve", "getaddrinfo failed", "ConnectionError", "MaxRetryError"]):
                     if os.getenv("RENDER"):
