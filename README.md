@@ -69,7 +69,7 @@ SECRET_KEY=your_secure_random_string_for_jwts
 Create a `.env` file in the **`/client`** directory:
 ```env
 VITE_API_URL=http://localhost:8000
-VITE_GOOGLE_CLIENT_ID=your_oauth_client_id.apps.googleusercontent.com
+VITE_GOOGLE_CLIENT_ID=YOUR_VITE_GOOGLE_CLIENT_ID
 ```
 
 ### 2. Start the Backend
