@@ -3,7 +3,19 @@ import json
 
 import os
 
+import urllib.parse
+
 BASE_URL = os.environ.get('API_BASE_URL', 'http://localhost:8000')
+
+# Validate and sanitize BASE_URL to prevent SSRF attacks
+try:
+    parsed_url = urllib.parse.urlparse(BASE_URL)
+    if not all([parsed_url.scheme, parsed_url.netloc]):
+        raise ValueError('Invalid BASE_URL')
+except ValueError as e:
+    print(f'Invalid BASE_URL: {e}')
+    # Handle invalid BASE_URL, e.g., exit the program or use a default value
+    exit(1)
 
 def print_test_result(test_name, success, response=None):
     status = "✅ PASS" if success else "❌ FAIL"
