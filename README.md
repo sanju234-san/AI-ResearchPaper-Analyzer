@@ -61,7 +61,7 @@ This application was engineered with a strict separation of concerns, focusing o
 
 Create a `.env` file in the **`/server`** directory:
 ```env
-GROQ_API_KEY=your_groq_key
+GROQ_API_KEY=YOUR_GROQ_API_KEY
 MONGODB_URI=mongodb+srv://<user>:<password>@cluster0...
 SECRET_KEY=your_secure_random_string_for_jwts
 ```
