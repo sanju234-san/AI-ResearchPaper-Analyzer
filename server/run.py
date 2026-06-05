@@ -12,10 +12,13 @@ if __name__ == "__main__":
     print("🔗 RAG Engine: LangChain + FAISS")
     print("\nPress CTRL+C to stop the server\n")
 
+    import os
+    host = os.getenv('HOST', '0.0.0.0')
+    port = int(os.getenv('PORT', '8000'))
     uvicorn.run(
         "app.main:app",
-        host="0.0.0.0",
-        port=8000,
+        host=host,
+        port=port,
         reload=True,
         access_log=True
     )
