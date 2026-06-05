@@ -12,8 +12,10 @@ token = res.json()["token"]
 
 # Create a dummy PDF file (just needs %PDF header and size > 100 bytes)
 pdf_content = b"%PDF-1.4\n" + b"x" * 200 + b"\n%%EOF"
-with open("dummy.pdf", "wb") as f:
+import tempfile
+with tempfile.NamedTemporaryFile(suffix='.pdf', delete=False) as f:
     f.write(pdf_content)
+    file_path = f.name
 
 # Upload the file
 headers = {
