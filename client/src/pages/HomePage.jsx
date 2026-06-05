@@ -15,7 +15,7 @@ const TypewriterTitle = () => {
     const timer = setInterval(() => {
       setText(fullText.slice(0, i));
       i++;
-      if (i > fullText.length) {
+      if (i >= fullText.length) {
         clearInterval(timer);
         setIsTyping(false);
       }
