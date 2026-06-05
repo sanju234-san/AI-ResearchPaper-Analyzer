@@ -6,7 +6,10 @@ Loads environment variables and defines constants for Groq, LangChain, and FAISS
 import os
 from dotenv import load_dotenv
 
-load_dotenv()
+try:
+    load_dotenv()
+except Exception as e:
+    print(f"Error loading .env file: {e}")
 
 # --- Groq API ---
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
