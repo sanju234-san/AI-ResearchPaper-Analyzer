@@ -4,7 +4,7 @@ import base64
 
 # Get a token first
 auth_data = {
-    "email": "testuser123@example.com",
+    "email": os.environ.get("TEST_EMAIL"),
     "password": os.environ.get("TEST_PASSWORD")
 }
 res = requests.post("http://localhost:8000/api/auth/login", json=auth_data)
