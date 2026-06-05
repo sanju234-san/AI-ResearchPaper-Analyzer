@@ -12,7 +12,7 @@ except Exception as e:
     print(f"Error loading .env file: {e}")
 
 # --- Groq API ---
-GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+GROQ_API_KEY = os.getenv("GROQ_API_KEY", "").strip()
 GROQ_MODEL = "llama-3.3-70b-versatile"          # primary model
 GROQ_FAST_MODEL = "llama-3.1-8b-instant"      # for quick classification tasks
 
