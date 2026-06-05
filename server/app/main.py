@@ -166,8 +166,15 @@ async def analyze_pdf(
     question: Optional[str] = Form(None),
     authorization: Optional[str] = Header(None)
 ):
-    if not file.filename.endswith(".pdf"):
-        raise HTTPException(400, "Only PDF files accepted")
+    try:
+        import magic
+        file_type = magic.from_buffer(await file.read(2048), mime=True)
+        if not file_type or not file_type.startswith('application/pdf'):
+            raise HTTPException(400, "Only PDF files accepted")
+    except ImportError:
+        if not file.filename.endswith('.pdf'):
+            raise HTTPException(400, "Only PDF files accepted")
+    await file.seek(0)
 
     content = await file.read()
     doc_id = str(uuid.uuid4())
