@@ -16,22 +16,36 @@ function AppRoutes() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const token = localStorage.getItem('auth_token');
-    const user = localStorage.getItem('auth_user');
+    const token = sessionStorage.getItem('auth_token');
+    const user = sessionStorage.getItem('auth_user');
     if (token && user) {
       try {
         const parsed = JSON.parse(user);
         setUserName(parsed.name || parsed.email);
         setIsAuthenticated(true);
       } catch {
-        localStorage.removeItem('auth_token');
-        localStorage.removeItem('auth_user');
+        sessionStorage.removeItem('auth_token');
+        sessionStorage.removeItem('auth_user');
         setIsAuthenticated(false);
       }
     } else {
       setIsAuthenticated(false);
     }
-  }, [token, user]);
+  }, []);
+
+  useEffect(() => {
+    const handleStorageChange = () => {
+      const token = sessionStorage.getItem('auth_token');
+      const user = sessionStorage.getItem('auth_user');
+      if (!token || !user) {
+        setIsAuthenticated(false);
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, []);
 
   const handleLogin = (name) => {
     setUserName(name);
