@@ -77,9 +77,11 @@ body {
   position: absolute;
   inset: 0;
   opacity: 0.03;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 256 256'%3E%3Crect x='0' y='0' width='256' height='256' fill='none' rx='0'/%3E%3C/svg%3E");
   pointer-events: none;
   z-index: 0;
+  background-image: linear-gradient(90deg, #ffffff 10%, #808080 30%, #ffffff 50%, #808080 70%, #ffffff 90%); /* A simple noise pattern */
+  background-size: 20px 20px; /* Adjust the size of the noise pattern */
 }
 
 /* Markdown Styling for dark theme */
