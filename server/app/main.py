@@ -153,8 +153,7 @@ def _is_valid_pdf(file_path: str) -> bool:
             if file_size < 100:
                 return False
             return True
-    except:
-        return False
+    except Exception as e: print(f"An error occurred: {e}"); return False
 
 
 # ---------------------------------------------------------------------------
