@@ -17,7 +17,12 @@ async def main():
     for p in papers:
         print(f"Paper: {p}")
         
-    client.close()
+    try:
+        papers = await db.papers.find().to_list(10)
+        for p in papers:
+            print(f"Paper: {p}")
+    finally:
+        client.close()
 
 if __name__ == "__main__":
     asyncio.run(main())
