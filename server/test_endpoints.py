@@ -68,7 +68,7 @@ def test_all_endpoints():
 
     # Test 3: Ask question endpoint
     try:
-        response = requests.post(f"{BASE_URL}/ask-question", data={"question": "What can this API do?"})
+        response = requests.post(f"{BASE_URL}/ask-question", json={"question": "What can this API do?"})
         print_test_result("Ask Question", response.status_code == 200, response)
     except requests.exceptions.Timeout:
         print_test_result("Ask Question", False)
