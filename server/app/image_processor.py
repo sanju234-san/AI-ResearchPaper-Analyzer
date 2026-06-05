@@ -121,7 +121,7 @@ class ImageProcessor:
                         best_text = text
                         used_config = config if config else "default"
                         print(f" ✅ OCR successful with config: {used_config}")
-                except Exception as config_error:
+                except pytesseract.TesseractError as config_error:
                     print(f" ⚠️ OCR config failed {config}: {config_error}")
                     continue
 
