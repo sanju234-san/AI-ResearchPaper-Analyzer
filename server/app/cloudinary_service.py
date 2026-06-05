@@ -105,10 +105,8 @@ async def upload_to_cloudinary(
 
     # Read file bytes (handle the case where the file has already been read)
     file_bytes = await file.read()
-    if not file_bytes:
-        # File was already consumed — seek back and re-read
+    if file_bytes:
         await file.seek(0)
-        file_bytes = await file.read()
 
     try:
         # cloudinary.uploader.upload is synchronous — run in thread-pool
