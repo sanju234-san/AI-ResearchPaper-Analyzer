@@ -17,7 +17,7 @@ const TechBadge = ({ label, color = 'mint', className = '' }) => (
 export const TechBadgeRow = ({ badges }) => (
   <div className="flex flex-wrap gap-2">
     {badges.map((b, i) => (
-      <TechBadge key={i} label={b.label} color={b.color} />
+      <TechBadge key={b.id} label={b.label} color={b.color} />
     ))}
   </div>
 );
