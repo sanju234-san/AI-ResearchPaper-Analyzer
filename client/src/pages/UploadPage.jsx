@@ -48,7 +48,7 @@ const UploadPage = ({ onNavigate, onUploadComplete, userName }) => {
       if (question) formData.append('question', question);
 
       const headers = {};
-      const token = localStorage.getItem('auth_token');
+      const token = document.cookie.split('; ').find(cookie => cookie.startsWith('auth_token='))?.split('=')[1];
       if (token) headers['Authorization'] = `Bearer ${token}`;
 
       const endpoint = file.type === 'application/pdf' ? '/analyze-pdf' : '/analyze-image';
