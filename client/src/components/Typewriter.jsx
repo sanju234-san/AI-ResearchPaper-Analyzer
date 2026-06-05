@@ -118,7 +118,7 @@ const Typewriter = ({
                 clearTimeout(timeoutRef.current)
             }
         }
-    }, [displayText, isDeleting, targetText, textIndex, isComplete])
+    }, [targetText, isComplete])
 
     // Cleanup on unmount
     useEffect(() => {
