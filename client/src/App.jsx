@@ -31,7 +31,7 @@ function AppRoutes() {
     } else {
       setIsAuthenticated(false);
     }
-  }, [location]);
+  }, [token, user]);
 
   const handleLogin = (name) => {
     setUserName(name);
