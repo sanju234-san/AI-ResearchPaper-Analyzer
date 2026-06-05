@@ -34,6 +34,8 @@ import os
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 VECTOR_STORE_PATH = os.path.abspath(os.path.join(BASE_DIR, "data/vector_store"))
 UPLOAD_PATH = os.path.abspath(os.path.join(BASE_DIR, "data/uploads"))
+if not UPLOAD_PATH.startswith(BASE_DIR):
+    raise ValueError("UPLOAD_PATH is not within BASE_DIR")
 
 # --- Limits ---
 MAX_FILE_SIZE_MB = 20
