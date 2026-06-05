@@ -1,9 +1,15 @@
 // client/src/services/api.js
 // Updated API service for Groq + LangChain backend v2.0
-const API_BASE = import.meta.env.VITE_API_URL || 
-  (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-    ? 'http://localhost:8000'
-    : 'https://paperlytics.onrender.com');
+const getApiBaseUrl = () => {
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL;
+  }
+  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+    return 'http://localhost:8000';
+  }
+  return 'https://paperlytics.onrender.com';
+};
+const API_BASE = getApiBaseUrl();
 
 class ApiService {
   async checkHealth() {
