@@ -40,7 +40,7 @@ class ResilientHuggingFaceEmbeddings(Embeddings):
         self._mode = "api"
         
         # Check if local mode is forced by env variable
-        force_mode = os.getenv("EMBEDDINGS_MODE", "").lower()
+        EMBEDDINGS_MODE = os.getenv("EMBEDDINGS_MODE", "api").lower() or "api"
         if force_mode == "local" and not os.getenv("RENDER"):
             self._mode = "local"
             print("🔌 Forced EMBEDDINGS_MODE=local from environment settings.")
