@@ -38,7 +38,7 @@ class ImageProcessor:
                         version = result.stdout.split('\n')[0]
                         print(f" ✅ Tesseract verified: {version} at {tesseract_path}")
                         return True, tesseract_path
-                except Exception as e:
+                except subprocess.CalledProcessError as e:
                     print(f" ⚠️ Tesseract verification failed at {tesseract_path}: {e}")
 
         # Try PATH fallback
