@@ -14,7 +14,7 @@ const DashboardPage = ({ onNavigate, onViewAnalysis, userName }) => {
   const [fetchError, setFetchError] = useState(null);
 
   const fetchFromMongoDB = async () => {
-    const token = localStorage.getItem('auth_token');
+    const token = document.cookie.split('; ').find(cookie => cookie.startsWith('auth_token='))?.split('=')[1];
     if (!token) return null;
 
     try {
