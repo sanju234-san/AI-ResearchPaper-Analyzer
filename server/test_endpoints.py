@@ -24,6 +24,15 @@ def test_all_endpoints():
     try:
         response = requests.get(f"{BASE_URL}/")
         print_test_result("Root Endpoint", response.status_code == 200, response)
+    except requests.exceptions.Timeout:
+        print_test_result("Root Endpoint", False)
+        print("   Exception: Request timed out")
+    except requests.exceptions.ConnectionError:
+        print_test_result("Root Endpoint", False)
+        print("   Exception: Connection error")
+    except requests.exceptions.HTTPError as e:
+        print_test_result("Root Endpoint", False)
+        print(f"   Exception: HTTP error {e}")
     except Exception as e:
         print_test_result("Root Endpoint", False)
         print(f"   Exception: {e}")
@@ -32,6 +41,15 @@ def test_all_endpoints():
     try:
         response = requests.get(f"{BASE_URL}/health")
         print_test_result("Health Check", response.status_code == 200, response)
+    except requests.exceptions.Timeout:
+        print_test_result("Health Check", False)
+        print("   Exception: Request timed out")
+    except requests.exceptions.ConnectionError:
+        print_test_result("Health Check", False)
+        print("   Exception: Connection error")
+    except requests.exceptions.HTTPError as e:
+        print_test_result("Health Check", False)
+        print(f"   Exception: HTTP error {e}")
     except Exception as e:
         print_test_result("Health Check", False)
         print(f"   Exception: {e}")
@@ -40,6 +58,15 @@ def test_all_endpoints():
     try:
         response = requests.post(f"{BASE_URL}/ask-question", data={"question": "What can this API do?"})
         print_test_result("Ask Question", response.status_code == 200, response)
+    except requests.exceptions.Timeout:
+        print_test_result("Ask Question", False)
+        print("   Exception: Request timed out")
+    except requests.exceptions.ConnectionError:
+        print_test_result("Ask Question", False)
+        print("   Exception: Connection error")
+    except requests.exceptions.HTTPError as e:
+        print_test_result("Ask Question", False)
+        print(f"   Exception: HTTP error {e}")
     except Exception as e:
         print_test_result("Ask Question", False)
         print(f"   Exception: {e}")
@@ -48,6 +75,15 @@ def test_all_endpoints():
     try:
         response = requests.get(f"{BASE_URL}/documents")
         print_test_result("List Documents", response.status_code == 200, response)
+    except requests.exceptions.Timeout:
+        print_test_result("List Documents", False)
+        print("   Exception: Request timed out")
+    except requests.exceptions.ConnectionError:
+        print_test_result("List Documents", False)
+        print("   Exception: Connection error")
+    except requests.exceptions.HTTPError as e:
+        print_test_result("List Documents", False)
+        print(f"   Exception: HTTP error {e}")
     except Exception as e:
         print_test_result("List Documents", False)
         print(f"   Exception: {e}")
