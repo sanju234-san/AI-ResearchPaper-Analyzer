@@ -18,7 +18,7 @@ GROQ_FAST_MODEL = "llama-3.1-8b-instant"      # for quick classification tasks
 
 # --- Embeddings ---
 EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
-HF_TOKEN = os.getenv("HF_TOKEN", "")  # HuggingFace Inference API token
+HF_TOKEN = os.getenv("HF_TOKEN", "your_secure_default_token_here")  # HuggingFace Inference API token
 
 # --- Chunking ---
 CHUNK_SIZE = 800
