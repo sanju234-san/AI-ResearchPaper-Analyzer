@@ -131,7 +131,7 @@ async def upload_to_cloudinary(
         raise HTTPException(
             status_code=500,
             detail=f"Cloud storage upload failed: {str(exc)}",
-        )
+        ) from exc
 
 
 async def delete_from_cloudinary(
