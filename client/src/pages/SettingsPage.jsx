@@ -6,7 +6,7 @@ import NavBar from '../components/NavBar';
 const SettingsPage = ({ onNavigate, userName }) => {
   const [activeTab, setActiveTab] = useState('profile');
   const [isGoogleConnected, setIsGoogleConnected] = useState(false);
-  const storedUser = JSON.parse(localStorage.getItem('auth_user') || '{}');
+  const storedUser = JSON.parse(sessionStorage.getItem('auth_user') || '{}');
   const userEmail = storedUser.email || '';
 
   const handleSignOut = () => {
