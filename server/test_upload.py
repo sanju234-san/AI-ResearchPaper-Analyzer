@@ -7,7 +7,8 @@ auth_data = {
     "email": os.environ.get("TEST_EMAIL"),
     "password": os.environ.get("TEST_PASSWORD")
 }
-res = requests.post("http://localhost:8000/api/auth/login", json=auth_data)
+import os
+res = requests.post(os.environ.get("LOGIN_URL"), json=auth_data)
 token = res.json()["token"]
 
 # Create a dummy PDF file (just needs %PDF header and size > 100 bytes)
