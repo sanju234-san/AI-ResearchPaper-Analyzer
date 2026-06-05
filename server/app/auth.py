@@ -12,7 +12,7 @@ load_dotenv()
 router = APIRouter()
 
 MONGODB_URI = os.getenv("MONGODB_URI")
-SECRET_KEY = os.getenv("SECRET_KEY", "super-secret-key-for-dev")
+SECRET_KEY = os.getenv("SECRET_KEY")
 ALGORITHM = "HS256"
 
 # These are set from main.py lifespan (avoids deprecated router.on_event)
