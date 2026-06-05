@@ -1,7 +1,9 @@
 import requests
 import json
 
-BASE_URL = "http://localhost:8000"
+import os
+
+BASE_URL = os.environ.get('API_BASE_URL', 'http://localhost:8000')
 
 def print_test_result(test_name, success, response=None):
     status = "✅ PASS" if success else "❌ FAIL"
