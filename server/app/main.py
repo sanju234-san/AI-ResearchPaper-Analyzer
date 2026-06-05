@@ -164,7 +164,7 @@ def _is_valid_pdf(file_path: str) -> bool:
 async def analyze_pdf(
     file: UploadFile = File(...),
     question: Optional[str] = Form(None),
-    authorization: Optional[str] = Header(None)
+    authorization: Optional[str] = Header(None, convert_underscores=True)
 ):
     try:
         import magic
@@ -276,7 +276,7 @@ async def analyze_pdf(
 async def analyze_image(
     file: UploadFile = File(...),
     question: Optional[str] = Form(None),
-    authorization: Optional[str] = Header(None)
+    authorization: Optional[str] = Header(None, convert_underscores=True)
 ):
     content = await file.read()
     doc_id = str(uuid.uuid4())
