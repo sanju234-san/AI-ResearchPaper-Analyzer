@@ -1,7 +1,9 @@
 import os
+import certifi
 from fastapi import APIRouter, HTTPException, Header
 from pydantic import BaseModel, EmailStr
 from motor.motor_asyncio import AsyncIOMotorClient
+from pymongo.errors import ServerSelectionTimeoutError, ConnectionFailure
 import bcrypt
 import jwt
 from datetime import datetime, timedelta
@@ -23,9 +25,15 @@ def connect_db():
     """Called from main.py lifespan on startup."""
     global client, db
     if MONGODB_URI:
-        client = AsyncIOMotorClient(MONGODB_URI)
+        client = AsyncIOMotorClient(
+            MONGODB_URI,
+            serverSelectionTimeoutMS=5000,
+            connectTimeoutMS=5000,
+            socketTimeoutMS=10000,
+            tlsCAFile=certifi.where(),
+        )
         db = client.research_analyzer
-        print("✅ Connected to MongoDB Atlas!")
+        print("✅ MongoDB client initialized (will verify on first query)")
     else:
         print("⚠️  WARNING: MONGODB_URI not set. MongoDB features disabled.")
 
@@ -70,18 +78,22 @@ async def signup(user: UserSignup):
     if db is None:
         raise HTTPException(status_code=503, detail="Database not configured")
 
-    existing = await db.users.find_one({"email": user.email})
-    if existing:
-        raise HTTPException(status_code=400, detail="Email already registered")
+    try:
+        existing = await db.users.find_one({"email": user.email})
+        if existing:
+            raise HTTPException(status_code=400, detail="Email already registered")
 
-    user_dict = user.dict()
-    user_dict['password'] = get_password_hash(user_dict['password'])
-    user_dict['created_at'] = datetime.utcnow()
-    user_dict['auth_provider'] = 'local'
+        user_dict = user.dict()
+        user_dict['password'] = get_password_hash(user_dict['password'])
+        user_dict['created_at'] = datetime.utcnow()
+        user_dict['auth_provider'] = 'local'
 
-    await db.users.insert_one(user_dict)
-    token = create_access_token({"sub": user.email, "name": user.name})
-    return {"success": True, "token": token, "user": {"name": user.name, "email": user.email}}
+        await db.users.insert_one(user_dict)
+        token = create_access_token({"sub": user.email, "name": user.name})
+        return {"success": True, "token": token, "user": {"name": user.name, "email": user.email}}
+    except (ServerSelectionTimeoutError, ConnectionFailure) as e:
+        print(f"❌ MongoDB connection error in signup: {e}")
+        raise HTTPException(status_code=503, detail="Database connection failed. Please check MongoDB Atlas IP whitelist and try again.")
 
 
 @router.post("/login")
@@ -89,34 +101,44 @@ async def login(user: UserLogin):
     if db is None:
         raise HTTPException(status_code=503, detail="Database not configured")
 
-    db_user = await db.users.find_one({"email": user.email})
-    if not db_user or db_user.get('auth_provider') != 'local':
-        raise HTTPException(status_code=401, detail="Invalid email or password")
-    if not verify_password(user.password, db_user['password']):
-        raise HTTPException(status_code=401, detail="Invalid email or password")
+    try:
+        db_user = await db.users.find_one({"email": user.email})
+        if not db_user or db_user.get('auth_provider') != 'local':
+            raise HTTPException(status_code=401, detail="Invalid email or password")
+        if not verify_password(user.password, db_user['password']):
+            raise HTTPException(status_code=401, detail="Invalid email or password")
 
-    token = create_access_token({"sub": db_user['email'], "name": db_user['name']})
-    return {"success": True, "token": token, "user": {"name": db_user['name'], "email": db_user['email']}}
+        token = create_access_token({"sub": db_user['email'], "name": db_user['name']})
+        return {"success": True, "token": token, "user": {"name": db_user['name'], "email": db_user['email']}}
+    except HTTPException:
+        raise
+    except (ServerSelectionTimeoutError, ConnectionFailure) as e:
+        print(f"❌ MongoDB connection error in login: {e}")
+        raise HTTPException(status_code=503, detail="Database connection failed. Please check MongoDB Atlas IP whitelist and try again.")
 
 
 @router.post("/google-auth")
-async def google_auth(auth: GoogleAuth):
+async def google_auth(auth_data: GoogleAuth):
     if db is None:
         raise HTTPException(status_code=503, detail="Database not configured")
 
-    db_user = await db.users.find_one({"email": auth.email})
+    try:
+        db_user = await db.users.find_one({"email": auth_data.email})
 
-    if not db_user:
-        new_user = auth.dict()
-        new_user['created_at'] = datetime.utcnow()
-        new_user['auth_provider'] = 'google'
-        await db.users.insert_one(new_user)
-        name = auth.name
-    else:
-        name = db_user.get('name', auth.name)
+        if not db_user:
+            new_user = auth_data.dict()
+            new_user['created_at'] = datetime.utcnow()
+            new_user['auth_provider'] = 'google'
+            await db.users.insert_one(new_user)
+            name = auth_data.name
+        else:
+            name = db_user.get('name', auth_data.name)
 
-    token = create_access_token({"sub": auth.email, "name": name})
-    return {"success": True, "token": token, "user": {"name": name, "email": auth.email}}
+        token = create_access_token({"sub": auth_data.email, "name": name})
+        return {"success": True, "token": token, "user": {"name": name, "email": auth_data.email}}
+    except (ServerSelectionTimeoutError, ConnectionFailure) as e:
+        print(f"❌ MongoDB connection error in google-auth: {e}")
+        raise HTTPException(status_code=503, detail="Database connection failed. Please check MongoDB Atlas IP whitelist and try again.")
 
 
 @router.get("/me")

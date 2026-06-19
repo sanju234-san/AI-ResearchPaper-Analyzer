@@ -26,11 +26,80 @@ const LoginPage = ({ onLogin, onNavigate }) => {
         onLogin(parsed.name || parsed.email);
       } catch {}
     }
+  }, []);
 
-    // Load Google Identity Services Script dynamically
+  // Google Sign-In setup — separate effect with proper closure
+  useEffect(() => {
+    let cancelled = false;
+
+    const handleCredentialResponse = async (response) => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const jwtToken = response.credential;
+        const payloadSegment = jwtToken.split('.')[1];
+        const base64 = payloadSegment.replace(/-/g, '+').replace(/_/g, '/');
+        const decodedPayload = JSON.parse(atob(base64));
+
+        const { name, email, picture, sub } = decodedPayload;
+
+        const res = await fetch(`${API_BASE_URL}/api/auth/google-auth`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email,
+            name,
+            google_id: sub,
+            avatar_url: picture
+          })
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || 'Google authentication failed');
+
+        if (data.success && data.token) {
+          localStorage.setItem('auth_token', data.token);
+          localStorage.setItem('auth_user', JSON.stringify(data.user));
+          onLogin(data.user.name || data.user.email);
+        } else {
+          throw new Error('Unexpected response from server');
+        }
+      } catch (err) {
+        if (cancelled) return;
+        console.error('Google Auth Error:', err);
+        if (err.message.includes('Failed to fetch') || err.message.includes('NetworkError')) {
+          setError('Cannot connect to server. Make sure the backend is running on port 8000.');
+        } else {
+          setError('Google Sign-In failed: ' + err.message);
+        }
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    };
+
+    const renderGoogleButton = () => {
+      if (!window.google || cancelled) return;
+      const buttonContainer = document.getElementById('google-signIn-button');
+      if (!buttonContainer) return;
+
+      try {
+        window.google.accounts.id.initialize({
+          client_id: clientId,
+          callback: handleCredentialResponse
+        });
+        window.google.accounts.id.renderButton(
+          buttonContainer,
+          { theme: 'outline', size: 'large', type: 'standard', width: 300 }
+        );
+      } catch (err) {
+        console.error('Google button render error:', err);
+      }
+    };
+
     const loadGoogleScript = () => {
       if (document.getElementById('google-gsi-script')) {
-        renderGoogleButton();
+        // Script already loaded — wait a tick for the DOM element to be ready
+        setTimeout(renderGoogleButton, 100);
         return;
       }
       const script = document.createElement('script');
@@ -38,69 +107,21 @@ const LoginPage = ({ onLogin, onNavigate }) => {
       script.id = 'google-gsi-script';
       script.async = true;
       script.defer = true;
-      script.onload = renderGoogleButton;
+      script.onload = () => setTimeout(renderGoogleButton, 100);
+      script.onerror = () => {
+        if (!cancelled) {
+          setError('Failed to load Google Sign-In. Check your internet connection.');
+        }
+      };
       document.head.appendChild(script);
-    };
-
-    const renderGoogleButton = () => {
-      if (!window.google) return;
-      window.google.accounts.id.initialize({
-        client_id: clientId,
-        callback: handleCredentialResponse
-      });
-      window.google.accounts.id.renderButton(
-        document.getElementById('google-signIn-button'),
-        { theme: 'outline', size: 'large', type: 'standard', width: 300 }
-      );
     };
 
     loadGoogleScript();
 
     return () => {
-      // Cleanup is usually not necessary for external scripts like GSI,
-      // but if needed we could remove it here.
+      cancelled = true;
     };
-  }, []);
-
-  const handleCredentialResponse = async (response) => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const jwtToken = response.credential;
-      const payloadSegment = jwtToken.split('.')[1];
-      const base64 = payloadSegment.replace(/-/g, '+').replace(/_/g, '/');
-      const decodedPayload = JSON.parse(atob(base64));
-      
-      const { name, email, picture, sub } = decodedPayload;
-
-      const res = await fetch(`${API_BASE_URL}/api/auth/google-auth`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email,
-          name,
-          google_id: sub,
-          avatar_url: picture
-        })
-      });
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || 'Google authentication failed');
-
-      if (data.success && data.token) {
-        localStorage.setItem('auth_token', data.token);
-        localStorage.setItem('auth_user', JSON.stringify(data.user));
-        onLogin(data.user.name || data.user.email);
-      } else {
-        throw new Error('Unexpected response from server');
-      }
-    } catch (err) {
-      console.error('Google Auth Error:', err);
-      setError('Google Sign-In failed: ' + err.message);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  }, [clientId, onLogin]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();

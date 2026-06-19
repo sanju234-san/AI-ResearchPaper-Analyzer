@@ -4,8 +4,16 @@ import { motion } from 'framer-motion';
 import NavBar from '../components/NavBar';
 import LoadingOverlay from '../components/LoadingOverlay';
 
-import config from '../config.js';
-const API_BASE_URL = config.apiBaseUrl;
+const getApiBaseUrl = () => {
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL;
+  }
+  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+    return 'http://localhost:8000';
+  }
+  return 'https://paperlytics.onrender.com';
+};
+const API_BASE_URL = getApiBaseUrl();
 
 const UploadPage = ({ onNavigate, onUploadComplete, userName }) => {
   const [file, setFile] = useState(null);
@@ -48,7 +56,7 @@ const UploadPage = ({ onNavigate, onUploadComplete, userName }) => {
       if (question) formData.append('question', question);
 
       const headers = {};
-      const token = document.cookie.split('; ').find(cookie => cookie.startsWith('auth_token='))?.split('=')[1];
+      const token = localStorage.getItem('auth_token');
       if (token) headers['Authorization'] = `Bearer ${token}`;
 
       const endpoint = file.type === 'application/pdf' ? '/analyze-pdf' : '/analyze-image';
@@ -58,6 +66,8 @@ const UploadPage = ({ onNavigate, onUploadComplete, userName }) => {
 
       clearInterval(interval);
       setUploadProgress(100);
+
+      console.log('Upload result:', result);
 
       const paper = {
         id: Date.now(),
@@ -76,10 +86,18 @@ const UploadPage = ({ onNavigate, onUploadComplete, userName }) => {
         answer: result.answer || null,
       };
 
+      console.log('Paper object:', paper);
+      console.log('onUploadComplete function:', onUploadComplete);
+
       const papers = JSON.parse(localStorage.getItem('papers') || '[]');
       papers.push(paper);
       localStorage.setItem('papers', JSON.stringify(papers));
-      setTimeout(() => onUploadComplete(paper), 1200);
+      
+      console.log('Calling onUploadComplete and navigating to analysis...');
+      setTimeout(() => {
+        setIsUploading(false);
+        onUploadComplete(paper);
+      }, 1200);
     } catch (err) {
       setError(err.message || 'Upload failed');
       setUploadProgress(0); setIsUploading(false);

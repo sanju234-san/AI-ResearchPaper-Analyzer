@@ -78,7 +78,12 @@ function AppRoutes() {
       <Routes location={location} key={location.pathname}>
         <Route path="/login" element={!isAuthenticated ? <LoginPage onLogin={handleLogin} onNavigate={handleNavigate} /> : <Navigate to="/" />} />
         <Route path="/" element={<HomePage onNavigate={handleNavigate} userName={userName} />} />
-        <Route path="/upload" element={<UploadPage onNavigate={handleNavigate} userName={userName} onUploadComplete={(paper) => { setSelectedPaper(paper); navigate('/analysis'); }} />} />
+        <Route path="/upload" element={<UploadPage onNavigate={handleNavigate} userName={userName} onUploadComplete={(paper) => { 
+          console.log('App onUploadComplete called with paper:', paper);
+          setSelectedPaper(paper); 
+          console.log('Navigating to /analysis...');
+          navigate('/analysis'); 
+        }} />} />
         <Route path="/analysis" element={<AnalysisPage paper={selectedPaper} onNavigate={handleNavigate} userName={userName} />} />
         <Route path="/dashboard" element={isAuthenticated ? <DashboardPage onNavigate={handleNavigate} userName={userName} onViewAnalysis={(paper) => { setSelectedPaper(paper); navigate('/analysis'); }} /> : <Navigate to="/login" />} />
         <Route path="/settings" element={isAuthenticated ? <SettingsPage onNavigate={handleNavigate} userName={userName} /> : <Navigate to="/login" />} />
@@ -89,7 +94,12 @@ function AppRoutes() {
 
 function App() {
   return (
-    <Router>
+    <Router
+      future={{
+        v7_startTransition: true,
+        v7_relativeSplatPath: true,
+      }}
+    >
       <div className="App">
         <AppRoutes />
       </div>

@@ -36,21 +36,6 @@ def _ensure_configured() -> None:
             "Set CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and "
             "CLOUDINARY_API_SECRET in your .env file."
         )
-    try:
-        import cloudinary  # Lazy import
-        cloudinary.config(
-            cloud_name=CLOUDINARY_CLOUD_NAME,
-            api_key=CLOUDINARY_API_KEY,
-            api_secret=CLOUDINARY_API_SECRET,
-            secure=True,
-        )
-    except Exception as e:
-        raise RuntimeError("Invalid Cloudinary credentials.") from e
-        raise RuntimeError(
-            "Cloudinary credentials are missing. "
-            "Set CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and "
-            "CLOUDINARY_API_SECRET in your .env file."
-        )
 
     import cloudinary  # Lazy import
     cloudinary.config(
@@ -60,7 +45,7 @@ def _ensure_configured() -> None:
         secure=True,
     )
     _cloudinary_configured = True
-    print("☁️  Cloudinary configured successfully")
+    print("Cloudinary configured successfully")
 
 
 def _detect_resource_type(filename: str) -> str:
