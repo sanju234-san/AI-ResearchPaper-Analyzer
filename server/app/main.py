@@ -17,6 +17,24 @@ from fastapi.responses import JSONResponse
 from typing import Optional
 from datetime import datetime
 import jwt
+app = FastAPI(
+    title="AI Research Paper Analyzer",
+    description="RAG-powered paper analysis with Groq Llama 3 + LangChain",
+    version="2.0.0",
+    lifespan=lifespan
+)
+
+
+
+origins = os.environ.get("ALLOWED_ORIGINS", "http://localhost:5173").split(",")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 # ---------------------------------------------------------------------------
@@ -74,24 +92,7 @@ async def lifespan(app: FastAPI):
 # App Setup
 # ---------------------------------------------------------------------------
 
-app = FastAPI(
-    title="AI Research Paper Analyzer",
-    description="RAG-powered paper analysis with Groq Llama 3 + LangChain",
-    version="2.0.0",
-    lifespan=lifespan
-)
 
-
-
-origins = os.environ.get("ALLOWED_ORIGINS", "http://localhost:5173").split(",")
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
 # Auth router — lightweight, no heavy deps
 from app.auth import router as auth_router
