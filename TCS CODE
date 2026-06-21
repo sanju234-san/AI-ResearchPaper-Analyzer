@@ -1,0 +1,95 @@
+{
+  "nbformat": 4,
+  "nbformat_minor": 0,
+  "metadata": {
+    "colab": {
+      "provenance": [],
+      "authorship_tag": "ABX9TyPos4pWLVdTtbiL//5pNvCt",
+      "include_colab_link": true
+    },
+    "kernelspec": {
+      "name": "python3",
+      "display_name": "Python 3"
+    },
+    "language_info": {
+      "name": "python"
+    }
+  },
+  "cells": [
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "view-in-github",
+        "colab_type": "text"
+      },
+      "source": [
+        "<a href=\"https://colab.research.google.com/github/sanju234-san/AI-ResearchPaper-Analyzer/blob/main/TCS%20CODE\" target=\"_parent\"><img src=\"https://colab.research.google.com/assets/colab-badge.svg\" alt=\"Open In Colab\"/></a>"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 1,
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "w4ZvFwHnPKdo",
+        "outputId": "90cb9890-37e8-4347-8d12-f0caeb73a6e1"
+      },
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "Enter a number: 12321\n",
+            "12321 is a palindrome number\n"
+          ]
+        }
+      ],
+      "source": [
+        "# palindrome number\n",
+        "n = int(input(\"Enter a number: \"))\n",
+        "original = n\n",
+        "reverse = 0\n",
+        "while n > 0 :\n",
+        "    digit = n % 10\n",
+        "    reverse = reverse * 10 + digit\n",
+        "    n = n // 10\n",
+        "if original == reverse :\n",
+        "    print(original, \"is a palindrome number\")\n",
+        "else :\n",
+        "    print(original, \"is not a palindrome number\")"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "# HCF of two numbers\n",
+        "a = int(input(\"Enter first number: \"))\n",
+        "b = int(input(\"Enter second number: \"))\n",
+        "while b != 0 :\n",
+        "  a,b = b , a%b\n",
+        "print('hcf=' , a)"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "FD7f1ED5PQrl",
+        "outputId": "4c480c1d-8ef0-4195-aa05-d70864c2a7ac"
+      },
+      "execution_count": 2,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "Enter first number: 18\n",
+            "Enter second number: 48\n",
+            "hcf= 6\n"
+          ]
+        }
+      ]
+    }
+  ]
+}
