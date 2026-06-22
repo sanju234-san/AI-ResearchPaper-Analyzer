@@ -82,7 +82,7 @@ app = FastAPI(
 )
 
 
-origins = os.environ.get("ALLOWED_ORIGINS", "https://ai-research-paper-analyzer.vercel.app" , 'http://localhost:5173/').split(",")
+origins = os.environ.get("ALLOWED_ORIGINS",'http://localhost:5173/').split(",")
 
 
 app.add_middleware(
