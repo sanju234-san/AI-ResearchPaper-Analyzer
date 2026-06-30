@@ -81,8 +81,8 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-
-origins = os.environ.get("ALLOWED_ORIGINS",'http://localhost:5173').split(",")
+origins = [o.strip() for o in os.environ.get("ALLOWED_ORIGINS",'http://localhost:5173').split(",") if o.strip()]
+print(f"🌐 CORS allowed origins: {origins}")
 
 
 app.add_middleware(
@@ -214,6 +214,7 @@ async def analyze_pdf(
     question: Optional[str] = Form(None),
     authorization: Optional[str] = Header(None, convert_underscores=True)
 ):
+    print(f"📥 POST /analyze-pdf received: {file.filename} ({file.size} bytes)")
     try:
         import magic
         file_type = magic.from_buffer(await file.read(2048), mime=True)
