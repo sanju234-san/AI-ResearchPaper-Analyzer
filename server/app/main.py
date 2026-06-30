@@ -82,19 +82,17 @@ app = FastAPI(
 )
 
 
-origins = [
-    o.strip()
-    for o in os.environ.get("ALLOWED_ORIGINS", "http://localhost:5173").split(",")
-    if o.strip()
-]
+origins = os.environ.get("ALLOWED_ORIGINS",'http://localhost:5173').split(",")
+
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
     allow_credentials=True,
-    allow_methods=["GET", "POST", "DELETE", "OPTIONS"],  # Be explicit
-    allow_headers=["Authorization", "Content-Type"],     # Minimum needed
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
+
 # Auth router — lightweight, no heavy deps
 from app.auth import router as auth_router
 app.include_router(auth_router, prefix="/api/auth", tags=["auth"])
@@ -165,74 +163,74 @@ async def analyze_pdf(
     question: Optional[str] = Form(None),
     authorization: Optional[str] = Header(None, convert_underscores=True)
 ):
-    # --- File type validation ---
-    header_bytes = await file.read(2048)
     try:
         import magic
-        file_type = magic.from_buffer(header_bytes, mime=True)
-        if not file_type or not file_type.startswith("application/pdf"):
+        file_type = magic.from_buffer(await file.read(2048), mime=True)
+        if not file_type or not file_type.startswith('application/pdf'):
             raise HTTPException(400, "Only PDF files accepted")
     except ImportError:
-        if not file.filename.endswith(".pdf"):
+        if not file.filename.endswith('.pdf'):
             raise HTTPException(400, "Only PDF files accepted")
-
     await file.seek(0)
-    content = await file.read()  # Read once; reuse bytes everywhere
 
-    # --- Save temporarily for PDF validation + text extraction ---
+    content = await file.read()
     doc_id = str(uuid.uuid4())
     save_path = Path(UPLOAD_PATH) / f"{doc_id}_{file.filename}"
     save_path.write_bytes(content)
 
-    try:
-        if not _is_valid_pdf(str(save_path)):
-            raise HTTPException(400, "Invalid or corrupted PDF file")
-
-        text = get_pdf_processor().extract_text(str(save_path))
-        if not text or len(text.strip()) < 50:
-            raise HTTPException(500, "PDF extraction returned insufficient text")
-
-        print(f"📄 Extracted {len(text)} characters from {file.filename}")
-
-    finally:
-        # Always clean up local file, success or failure
+    # Validate PDF
+    if not _is_valid_pdf(str(save_path)):
         save_path.unlink(missing_ok=True)
+        raise HTTPException(400, "Invalid or corrupted PDF file")
 
-    # --- Upload bytes directly — no seek needed ---
-    from app.cloudinary_service import upload_bytes_to_cloudinary
-    cloud_result = await upload_bytes_to_cloudinary(
-        content, filename=file.filename, folder=f"{CLOUDINARY_FOLDER}/papers"
+    # Extract text (requires local file) — lazy-loads PDFProcessor
+    text = get_pdf_processor().extract_text(str(save_path))
+
+    if not text or len(text.strip()) < 50:
+        save_path.unlink(missing_ok=True)
+        raise HTTPException(500, "PDF extraction returned insufficient text")
+
+    print(f"📄 Extracted {len(text)} characters from {file.filename}")
+
+    # Upload to Cloudinary (reset UploadFile position first)
+    from app.cloudinary_service import upload_to_cloudinary
+    await file.seek(0)
+    cloud_result = await upload_to_cloudinary(
+        file, folder=f"{CLOUDINARY_FOLDER}/papers"
     )
     cloudinary_url = cloud_result["secure_url"]
     cloudinary_public_id = cloud_result["public_id"]
 
-    # --- RAG ingestion ---
+    # Remove temporary local file — Cloudinary is now the source of truth
+    save_path.unlink(missing_ok=True)
+
+    # Ingest into RAG — lazy-loads rag_system + embeddings + FAISS
     rag = get_rag()
     ingest_result = rag.ingest_document(text, doc_id, {"filename": file.filename})
 
+    # Generate summary + keywords via LLM
     summary_result = await rag.generate_summary(text)
     keywords = rag.extract_keywords(text)
+
+    # Analyze plagiarism
     plagiarism_result = rag.analyze_plagiarism(text)
 
+    # Optional question
     answer = None
     if question and question.strip():
         answer = rag.answer_question(question, doc_id)
 
-    # --- JWT decode with specific exceptions ---
+    # Save to MongoDB
     user_email = None
     if authorization and authorization.startswith("Bearer "):
-        token = authorization.split(" ", 1)[1]
+        token = authorization.split(" ")[1]
         try:
             from app.auth import SECRET_KEY, ALGORITHM
-            from jose import JWTError, ExpiredSignatureError
             payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
             user_email = payload.get("sub")
-        except ExpiredSignatureError:
-            raise HTTPException(401, "Token expired")
-        except JWTError:
-            pass  # Treat invalid token as anonymous — or raise 401 if you prefer
+        except:
+            pass
 
-    # --- Persist to MongoDB (text stored here, NOT returned to client) ---
     from app import auth
     if auth.db is not None:
         paper_doc = {
@@ -242,7 +240,7 @@ async def analyze_pdf(
             "cloudinary_url": cloudinary_url,
             "cloudinary_public_id": cloudinary_public_id,
             "text_length": len(text),
-            "extracted_text": text,      # Stored in DB only
+            "extracted_text": text,
             "summary": summary_result,
             "keywords": keywords,
             "rag_stats": ingest_result,
@@ -252,19 +250,20 @@ async def analyze_pdf(
         }
         await auth.db.papers.insert_one(paper_doc)
 
-    # --- Response omits raw extracted_text ---
     return {
         "success": True,
         "doc_id": doc_id,
         "filename": file.filename,
         "cloudinary_url": cloudinary_url,
         "text_length": len(text),
+        "extracted_text": text,
         "summary": summary_result,
         "keywords": keywords,
         "rag_stats": ingest_result,
         "plagiarism": plagiarism_result,
-        "answer": answer,
+        "answer": answer
     }
+
 
 # ---------------------------------------------------------------------------
 # Image Analysis

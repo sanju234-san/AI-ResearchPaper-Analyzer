@@ -182,17 +182,4 @@ async def download_from_cloudinary(url: str) -> bytes:
             status_code=502,
             detail=f"Failed to download file from cloud storage: {str(exc)}",
         )
-# cloudinary_service.py
-async def upload_bytes_to_cloudinary(
-    content: bytes,
-    filename: str,
-    folder: str
-) -> dict:
-    result = await asyncio.to_thread(
-        cloudinary.uploader.upload,
-        content,
-        folder=folder,
-        public_id=Path(filename).stem,
-        resource_type="raw",
-    )
-    return result
+
