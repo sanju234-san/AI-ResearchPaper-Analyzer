@@ -4,7 +4,7 @@ import NavBar from '../components/NavBar';
 import { motion } from 'framer-motion';
 import TechBadge from '../components/TechBadge';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://api.example.com';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://paperlytics-65uw.onrender.com';
 
 const AnalysisPage = ({ onNavigate, paper, userName }) => {
   const [expandedSections, setExpandedSections] = useState({});

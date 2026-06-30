@@ -17,7 +17,7 @@ const SettingsPage = ({ onNavigate, userName }) => {
 
   const handleGoogleConnect = async () => {
     try {
-      const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+      const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://paperlytics-65uw.onrender.com';
       // Simulated Google OAuth Flow
       const payload = {
         email: "user@example.com",

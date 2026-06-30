@@ -7,7 +7,7 @@ const getApiBaseUrl = () => {
   if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
     return 'http://localhost:8000';
   }
-  return 'https://paperlytics.onrender.com';
+  return 'https://paperlytics-65uw.onrender.com';
 };
 const API_BASE = getApiBaseUrl();
 
