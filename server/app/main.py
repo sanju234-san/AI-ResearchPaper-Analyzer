@@ -90,7 +90,28 @@ app.add_middleware(
     allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
-    allow_headers=["*"],
+    allow_headers=[
+        "Accept",
+        "Accept-Encoding",
+        "Accept-Language",
+        "Authorization",
+        "Cache-Control",
+        "Connection",
+        "Content-Length",
+        "Content-Type",
+        "Cookie",
+        "DNT",
+        "Host",
+        "Origin",
+        "Pragma",
+        "Referer",
+        "User-Agent",
+        "X-Requested-With",
+        "X-CSRF-Token",
+        "X-Auth-Token",
+        "X-Forwarded-For",
+        "X-Forwarded-Proto",
+    ],
 )
 
 # Auth router — lightweight, no heavy deps
@@ -102,6 +123,35 @@ from app.config import UPLOAD_PATH, CLOUDINARY_FOLDER
 Path(UPLOAD_PATH).mkdir(parents=True, exist_ok=True)
 
 print("🚀 AI Research Paper Analyzer v2.0.0 (memory-optimized)")
+
+
+# ---------------------------------------------------------------------------
+# Preflight handler — intercepts OPTIONS for Google OAuth before CORS middleware
+# can mishandle unexpected request headers.
+# ---------------------------------------------------------------------------
+
+@app.options("/api/auth/google-auth")
+async def options_google_auth():
+    """Explicit OPTIONS handler for Google OAuth preflight requests.
+
+    Returning a 200 here lets the browser's preflight succeed cleanly without
+    relying solely on CORSMiddleware to parse the incoming request headers.
+    The actual CORS response headers (Access-Control-Allow-*) are still
+    injected by CORSMiddleware after this handler returns.
+    """
+    return JSONResponse(
+        content={"message": "OK"},
+        status_code=200,
+        headers={
+            "Access-Control-Allow-Methods": "POST, OPTIONS",
+            "Access-Control-Allow-Headers": (
+                "Accept, Accept-Encoding, Accept-Language, Authorization, "
+                "Cache-Control, Content-Type, Cookie, DNT, Origin, Pragma, "
+                "Referer, User-Agent, X-Requested-With, X-CSRF-Token, "
+                "X-Auth-Token"
+            ),
+        },
+    )
 
 
 # ---------------------------------------------------------------------------

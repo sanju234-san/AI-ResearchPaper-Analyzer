@@ -3,7 +3,7 @@ import certifi
 from fastapi import APIRouter, HTTPException, Header
 from pydantic import BaseModel, EmailStr
 from motor.motor_asyncio import AsyncIOMotorClient
-from pymongo.errors import ServerSelectionTimeoutError, ConnectionFailure
+from pymongo.errors import ServerSelectionTimeoutError, ConnectionFailure, OperationFailure
 import bcrypt
 import jwt
 from datetime import datetime, timedelta
@@ -91,6 +91,9 @@ async def signup(user: UserSignup):
         await db.users.insert_one(user_dict)
         token = create_access_token({"sub": user.email, "name": user.name})
         return {"success": True, "token": token, "user": {"name": user.name, "email": user.email}}
+    except OperationFailure as e:
+        print(f"❌ MongoDB auth error in signup: {e}")
+        raise HTTPException(status_code=503, detail="Database authentication failed. Please verify MongoDB Atlas credentials and try again.")
     except (ServerSelectionTimeoutError, ConnectionFailure) as e:
         print(f"❌ MongoDB connection error in signup: {e}")
         raise HTTPException(status_code=503, detail="Database connection failed. Please check MongoDB Atlas IP whitelist and try again.")
@@ -112,6 +115,9 @@ async def login(user: UserLogin):
         return {"success": True, "token": token, "user": {"name": db_user['name'], "email": db_user['email']}}
     except HTTPException:
         raise
+    except OperationFailure as e:
+        print(f"❌ MongoDB auth error in login: {e}")
+        raise HTTPException(status_code=503, detail="Database authentication failed. Please verify MongoDB Atlas credentials and try again.")
     except (ServerSelectionTimeoutError, ConnectionFailure) as e:
         print(f"❌ MongoDB connection error in login: {e}")
         raise HTTPException(status_code=503, detail="Database connection failed. Please check MongoDB Atlas IP whitelist and try again.")
@@ -136,6 +142,9 @@ async def google_auth(auth_data: GoogleAuth):
 
         token = create_access_token({"sub": auth_data.email, "name": name})
         return {"success": True, "token": token, "user": {"name": name, "email": auth_data.email}}
+    except OperationFailure as e:
+        print(f"❌ MongoDB auth error in google-auth: {e}")
+        raise HTTPException(status_code=503, detail="Database authentication failed. Please verify MongoDB Atlas credentials and try again.")
     except (ServerSelectionTimeoutError, ConnectionFailure) as e:
         print(f"❌ MongoDB connection error in google-auth: {e}")
         raise HTTPException(status_code=503, detail="Database connection failed. Please check MongoDB Atlas IP whitelist and try again.")
