@@ -309,19 +309,44 @@ class LangChainRAGSystem:
         }
 
     async def generate_summary(self, text: str) -> dict:
-        """Generate structured summary using Groq directly (not RAG)."""
+        """Generate structured summary using Groq directly (not RAG).
+        Calls are sequential with retry to respect Groq free-tier rate limits.
+        """
         import asyncio
         llm = get_llm()
         prompts = _get_prompts()
-        # Use first 8000 chars for summary (fits in context)
-        truncated = text[:8000]
+        # Use first 6000 chars to stay well within TPM limits
+        truncated = text[:6000]
 
-        detailed_coro = llm.ainvoke(prompts["detailed"].format(context=truncated))
-        code_based_coro = llm.ainvoke(prompts["code_based"].format(context=truncated))
-        aspect_oriented_coro = llm.ainvoke(prompts["aspect_oriented"].format(context=truncated))
+        async def _invoke_with_retry(prompt_text, label, max_retries=3):
+            """Invoke LLM with exponential backoff on rate limit errors."""
+            for attempt in range(max_retries):
+                try:
+                    resp = await llm.ainvoke(prompt_text)
+                    return resp
+                except Exception as e:
+                    if "429" in str(e) or "rate_limit" in str(e).lower():
+                        wait = (attempt + 1) * 15  # 15s, 30s, 45s
+                        print(f"⏳ Rate limited on {label}, retrying in {wait}s (attempt {attempt+1}/{max_retries})")
+                        await asyncio.sleep(wait)
+                    else:
+                        raise
+            # Final attempt — let it raise if it fails
+            return await llm.ainvoke(prompt_text)
 
-        detailed_resp, code_based_resp, aspect_oriented_resp = await asyncio.gather(
-            detailed_coro, code_based_coro, aspect_oriented_coro
+        # Run sequentially to avoid hitting TPM limits
+        detailed_resp = await _invoke_with_retry(
+            prompts["detailed"].format(context=truncated), "detailed"
+        )
+        await asyncio.sleep(5)  # Brief pause between calls
+
+        code_based_resp = await _invoke_with_retry(
+            prompts["code_based"].format(context=truncated), "code_based"
+        )
+        await asyncio.sleep(5)
+
+        aspect_oriented_resp = await _invoke_with_retry(
+            prompts["aspect_oriented"].format(context=truncated), "aspect_oriented"
         )
 
         return {
