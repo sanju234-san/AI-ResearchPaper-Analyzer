@@ -310,7 +310,8 @@ class LangChainRAGSystem:
 
     async def generate_summary(self, text: str) -> dict:
         """Generate structured summary using Groq directly (not RAG).
-        Calls are sequential with retry to respect Groq free-tier rate limits.
+        Calls are run concurrently with exponential backoff on retries and capped
+        by a semaphore to prevent exceeding Groq rate limits.
         """
         import asyncio
         llm = get_llm()
@@ -318,11 +319,25 @@ class LangChainRAGSystem:
         # Use first 6000 chars to stay well within TPM limits
         truncated = text[:6000]
 
+        # Concurrency & Rate-Limiting Tradeoff Explanation:
+        # To optimize summary generation speed, we run the three LLM calls (detailed, code-based, and aspect-oriented)
+        # concurrently using asyncio.gather rather than sequentially. However, running concurrent requests against Groq's
+        # free-tier API can easily exceed the Tokens-Per-Minute (TPM) or Requests-Per-Minute (RPM) limits, leading to 429 errors.
+        #
+        # To address this tradeoff:
+        # 1. We use an asyncio.Semaphore (capped at 2 concurrent requests) to throttle the peak in-flight concurrency.
+        #    This allows genuine concurrent execution while preventing the API from being overwhelmed with too many simultaneous requests.
+        # 2. We keep individual exponential backoff retry logic (_invoke_with_retry) with 15s/30s/45s delays for each call.
+        # 3. We release the semaphore during retry sleeps so that other pending requests can proceed, ensuring rate limits
+        #    on one call don't block progress on the other tasks.
+        sem = asyncio.Semaphore(2)
+
         async def _invoke_with_retry(prompt_text, label, max_retries=3):
-            """Invoke LLM with exponential backoff on rate limit errors."""
+            """Invoke LLM with exponential backoff on rate limit errors, using a semaphore to limit concurrent active calls."""
             for attempt in range(max_retries):
                 try:
-                    resp = await llm.ainvoke(prompt_text)
+                    async with sem:
+                        resp = await llm.ainvoke(prompt_text)
                     return resp
                 except Exception as e:
                     if "429" in str(e) or "rate_limit" in str(e).lower():
@@ -332,21 +347,22 @@ class LangChainRAGSystem:
                     else:
                         raise
             # Final attempt — let it raise if it fails
-            return await llm.ainvoke(prompt_text)
+            async with sem:
+                return await llm.ainvoke(prompt_text)
 
-        # Run sequentially to avoid hitting TPM limits
-        detailed_resp = await _invoke_with_retry(
+        # Fire all three summary requests concurrently
+        detailed_task = _invoke_with_retry(
             prompts["detailed"].format(context=truncated), "detailed"
         )
-        await asyncio.sleep(5)  # Brief pause between calls
-
-        code_based_resp = await _invoke_with_retry(
+        code_based_task = _invoke_with_retry(
             prompts["code_based"].format(context=truncated), "code_based"
         )
-        await asyncio.sleep(5)
-
-        aspect_oriented_resp = await _invoke_with_retry(
+        aspect_oriented_task = _invoke_with_retry(
             prompts["aspect_oriented"].format(context=truncated), "aspect_oriented"
+        )
+
+        detailed_resp, code_based_resp, aspect_oriented_resp = await asyncio.gather(
+            detailed_task, code_based_task, aspect_oriented_task
         )
 
         return {

@@ -1,0 +1,40 @@
+{
+  "timestamp": "2026-07-14T13:06:22.892607",
+  "config": {
+    "dry_run": false,
+    "simulate_rate_limit": false,
+    "runs": 3,
+    "delay": 20
+  },
+  "results": {
+    "sequential": {
+      "times": [
+        16.720128699904308,
+        16.040870799915865,
+        16.859256400028244
+      ],
+      "min": 16.040870799915865,
+      "max": 16.859256400028244,
+      "mean": 16.54008529994947,
+      "median": 16.720128699904308,
+      "success_count": 3,
+      "retry_count": 0,
+      "error_count": 0
+    },
+    "concurrent": {
+      "times": [
+        3.851331999991089,
+        3.6413145000115037,
+        3.544931000098586
+      ],
+      "min": 3.544931000098586,
+      "max": 3.851331999991089,
+      "mean": 3.6791925000337264,
+      "median": 3.6413145000115037,
+      "success_count": 3,
+      "retry_count": 0,
+      "error_count": 0
+    }
+  },
+  "speedup_percentage": 77.75590371323558
+}
